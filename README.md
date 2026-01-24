@@ -23,27 +23,21 @@ playwright install
 
 ### Створення .env файлу
 
-Створіть файл `.env` в корені проекту з наступною структурою:
+Для роботи тестів необхідно створити файл `.env` в корені проекту з конфігурацією.
 
-```env
-# URL системи для тестування
-TEST_BASE_URL=https://hubtest.kasta.ua
-TEST_LOGIN_URL=https://hubtest.kasta.ua/user/login
+**⚠️ ВАЖЛИВО:** 
+- Файл `.env` не комітиться в Git (вже в `.gitignore`)
+- Кожен розробник створює свій власний `.env` файл локально
+- Секрети (логіни, паролі, URL) зберігаються тільки в `.env` файлі
+- Для прикладу структури використовуйте файл `.env.example`
 
-# Дані для логіну (тестові облікові записи)
-TEST_USER_EMAIL=your_test_email@example.com
-TEST_USER_PASSWORD=your_test_password
+**Що потрібно налаштувати в `.env`:**
+- URL системи для тестування
+- Дані для логіну (email та пароль)
+- URL після успішного логіну (опціонально)
+- Дані для негативних тестів (опціонально)
 
-# Дані для негативних тестів (неіснуючий користувач)
-TEST_NON_EXISTENT_USER_EMAIL=nonexistent_user@kasta.ua
-
-# URL після успішного логіну (для перевірки)
-TEST_DASHBOARD_URL=https://hubtest.kasta.ua/dashboard
-```
-
-**⚠️ ВАЖЛИВО:** Файл `.env` не комітиться в Git (вже в .gitignore). Кожен розробник створює свій власний `.env` файл локально.
-
-Детальніше про управління секретами див. [docs/SECRETS_MANAGEMENT.md](docs/SECRETS_MANAGEMENT.md)
+Детальніше про управління секретами та структуру `.env` файлу див. [docs/SECRETS_MANAGEMENT.md](docs/SECRETS_MANAGEMENT.md)
 
 ## Запуск тестів
 
