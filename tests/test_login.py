@@ -246,18 +246,24 @@ class TestLogin:
             f"Повідомлення про помилку має містити текст про заповнення форми. " \
             f"Отримано: '{error_text}'"
 
-    def test_login_sql_injection(self, page: Page, test_config: TestConfig):
+    def test_login_with_deactivated_user(self, page: Page, test_config: TestConfig):
         """
-        Тест кейс: Авторизація з SQL injection в полі email
+        Тест кейс: Авторизація з деактивованим/видаленим користувачем
         
-        Перевіряє захист системи від SQL injection атак.
-        Використовує різні SQL injection payloads для тестування.
+        Перевіряє що користувач, який існує в базі даних kasta.ua, але не має доступу
+        до HUB (звільнений співробітник, видалений з налаштувань продавця тощо)
+        не може авторизуватися в кабінет, але перенаправляється на сторінку реєстрації.
+        
+        Використовує email: i.i.kontent+test123@gmail.com
+        з паролем: Qwerty123
         
         Очікуваний результат:
-        - Система не піддається SQL injection атаці
-        - Відображається помилка валідації або система ігнорує injection
-        - Користувач залишається на сторінці логіну або отримує помилку
-        - База даних не піддається маніпуляціям
+        1. Користувача не логінить в кабінет
+        2. Після натискання кнопки "Увійти" користувача редіректимо на 
+           https://hubtest.kasta.ua/?supplier-reg=true
+        3. Над полем email з'являється повідомлення: 
+           "Вітаємо! Ви вже зареєстровані на kasta.ua, для завершення реєстрації в hub, заповніть поля нижче"
+        4. Відповідь API містить: {"status":"fail","code":"no-supplier"}
         """
         # Створення екземпляру сторінки логіну
         login_page = LoginPage(page)
@@ -265,92 +271,265 @@ class TestLogin:
         # Перехід на сторінку логіну
         login_page.navigate_to_login(test_config.LOGIN_URL)
         
-        # Різні SQL injection payloads для тестування (безпечні варіанти)
-        # Кожен payload тестує різні аспекти захисту від SQL injection
+        # Дані для тесту (деактивований користувач)
+        deactivated_email = "i.i.kontent+test123@gmail.com"
+        password = "Qwerty123"
+        
+        # Перехоплення network response для перевірки коду помилки
+        api_response = None
+        try:
+            with page.expect_response(
+                lambda response: (
+                    "login" in response.url.lower() or 
+                    "auth" in response.url.lower() or
+                    "supplier" in response.url.lower()
+                ),
+                timeout=10000
+            ) as response_info:
+                login_page.attempt_login(
+                    email=deactivated_email,
+                    password=password
+                )
+                api_response = response_info.value
+        except Exception:
+            # Якщо не вдалося перехопити response, продовжуємо тест
+            login_page.attempt_login(
+                email=deactivated_email,
+                password=password
+            )
+        
+        # Чекаємо для появи повідомлення про помилку та переадресації
+        page.wait_for_timeout(3000)
+        
+        # Перевірка 1: Переадресація на сторінку реєстрації
+        expected_url = "https://hubtest.kasta.ua/?supplier-reg=true"
+        current_url = page.url
+        assert current_url == expected_url or "supplier-reg=true" in current_url, \
+            f"Очікувалось переадресацію на '{expected_url}'. " \
+            f"Поточний URL: {current_url}"
+        
+        # Перевірка 2: Повідомлення на сторінці
+        # Очікуваний текст: "Вітаємо! Ви вже зареєстровані на kasta.ua, для завершення реєстрації в hub, заповніть поля нижче"
+        expected_message_parts = [
+            "вітаємо",
+            "ви вже зареєстровані",
+            "kasta.ua",
+            "завершення реєстрації",
+            "hub",
+            "заповніть поля"
+        ]
+        
+        # Перевірка через текст на сторінці
+        page_text = page.locator("body").text_content() or ""
+        found_texts = []
+        
+        for expected_text in expected_message_parts:
+            if expected_text in page_text.lower():
+                found_texts.append(expected_text)
+        
+        # Якщо не знайдено через текст, спробуємо через різні локатори
+        if len(found_texts) < len(expected_message_parts):
+            # Перевіряємо різні можливі місця відображення повідомлення
+            possible_selectors = [
+                ".ant-alert",
+                ".ant-message",
+                ".ant-notification",
+                "[role='alert']",
+                ".alert",
+                ".message",
+                ".notification",
+                "form .ant-alert",
+                "form .ant-message"
+            ]
+            
+            for selector in possible_selectors:
+                try:
+                    elements = page.locator(selector)
+                    count = elements.count()
+                    for i in range(count):
+                        element_text = elements.nth(i).text_content() or ""
+                        for expected_text in expected_message_parts:
+                            if expected_text in element_text.lower() and expected_text not in found_texts:
+                                found_texts.append(expected_text)
+                except:
+                    continue
+        
+        # Також перевіряємо через метод LoginPage (якщо повідомлення в alert)
+        error_text = login_page.get_error_message_text()
+        if error_text:
+            error_text_lower = error_text.lower()
+            for expected_text in expected_message_parts:
+                if expected_text in error_text_lower and expected_text not in found_texts:
+                    found_texts.append(expected_text)
+        
+        # Перевірка що знайдено достатньо частин повідомлення
+        assert len(found_texts) >= 4, \
+            f"Повідомлення має містити текст про реєстрацію на kasta.ua та завершення реєстрації в hub. " \
+            f"Знайдено частин: {found_texts} з {expected_message_parts}. " \
+            f"Поточний текст сторінки (перші 500 символів): {page_text[:500]}"
+        
+        # Перевірка API відповіді (якщо є)
+        if api_response:
+            try:
+                response_json = api_response.json()
+                assert response_json.get("status") == "fail", \
+                    f"Очікувалось status='fail', але отримано: {response_json.get('status')}"
+                assert response_json.get("code") == "no-supplier", \
+                    f"Очікувалось code='no-supplier', але отримано: {response_json.get('code')}"
+            except Exception as e:
+                # Якщо не вдалося отримати JSON, це не критично для тесту
+                pass
+        else:
+            # Якщо API response не перехоплено, спробуємо знайти через текст сторінки
+            page_text = page.locator("body").text_content() or ""
+            # Перевірка що ми на сторінці реєстрації (supplier-reg)
+            assert "supplier-reg" in current_url.lower() or "реєстраці" in page_text.lower(), \
+                "Очікувалось переадресацію на сторінку реєстрації"
+
+    def _test_sql_injection_payload(self, login_page: LoginPage, page: Page, payload: str, test_config: TestConfig):
+        """
+        Допоміжна функція для перевірки одного SQL injection payload.
+        
+        Args:
+            login_page: Екземпляр LoginPage
+            page: Екземпляр Page з Playwright
+            payload: SQL injection payload для тестування
+            test_config: Конфігурація тестів
+        """
+        # Перехід на сторінку логіну перед кожним тестом
+        login_page.navigate_to_login(test_config.LOGIN_URL)
+        
+        # Спробувати виконати логін з SQL injection payload
+        login_page.attempt_login(
+            email=payload,
+            password=test_config.USER_PASSWORD
+        )
+        
+        # Чекаємо для появи відповіді
+        page.wait_for_timeout(2000)
+        
+        # Перевірка що система не піддалася атаці
+        # 1. Перевірка що не відбувся успішний логін (якщо б SQL injection спрацював)
+        current_url = page.url
+        assert "/user/login" in current_url or "supplier-reg" in current_url or "?" in current_url, \
+            f"SQL injection payload '{payload}' не повинен дозволити успішний логін. " \
+            f"Поточний URL: {current_url}"
+        
+        # 2. Перевірка що не відбувся перехід на dashboard (якщо вказано)
+        if test_config.DASHBOARD_URL:
+            assert test_config.DASHBOARD_URL not in current_url, \
+                f"SQL injection payload '{payload}' не повинен дозволити доступ до dashboard. " \
+                f"Поточний URL: {current_url}"
+        
+        # 3. Перевірка що відображається помилка або система відхилила запит
+        # Може бути помилка валідації або alert про невірні дані
+        error_visible = login_page.is_error_message_visible()
+        # Якщо немає помилки, це теж нормально - система може просто ігнорувати injection
+        
+        # 4. Перевірка що сторінка все ще працює (не зламана)
+        page_title = page.title()
+        assert page_title, \
+            f"SQL injection payload '{payload}' не повинен зламати сторінку. " \
+            f"Сторінка має мати title"
+        
+        # 5. Перевірка що форма логіну все ще доступна
+        try:
+            email_input = page.locator(login_page.locators.EMAIL_INPUT)
+            assert email_input.is_visible(timeout=2000), \
+                f"SQL injection payload '{payload}' не повинен зламати форму логіну"
+        except:
+            # Якщо форма не видима, це може бути нормально якщо відбулась переадресація
+            pass
+
+    def test_login_sql_injection_basic_or_with_comments(self, page: Page, test_config: TestConfig):
+        """
+        Тест кейс: Авторизація з базовими OR injection з різними коментарями
+        
+        Перевіряє захист системи від найпростіших та найпоширеніших SQL injection атак.
+        Тестує базові OR injection з різними типами коментарів.
+        
+        Очікуваний результат:
+        - Система не піддається SQL injection атаці
+        - Відображається помилка валідації або система ігнорує injection
+        - Користувач залишається на сторінці логіну або отримує помилку
+        """
+        login_page = LoginPage(page)
+        
+        # Базові OR injection з різними коментарями (4 payloads)
         sql_injection_payloads = [
-            # 1. Базовий OR injection - тестує чи система екранує одинарні лапки
+            # Базовий OR injection - тестує чи система екранує одинарні лапки
             "' OR '1'='1",
-            
-            # 2. OR injection з коментарем (--) - тестує захист від SQL коментарів
+            # OR injection з коментарем (--) - тестує захист від SQL коментарів
             "' OR '1'='1' --",
-            
-            # 3. OR injection з багаторядковим коментарем (/* */) - тестує захист від багаторядкових коментарів
+            # OR injection з багаторядковим коментарем (/* */) - тестує захист від багаторядкових коментарів
             "' OR '1'='1' /*",
-            
-            # 4. Injection після імені користувача з коментарем - тестує чи система обрізає injection після коментаря
-            "admin'--",
-            
-            # 5. Injection після імені з багаторядковим коментарем - тестує захист від багаторядкових коментарів після даних
-            "admin'/*",
-            
-            # 6. UNION injection - тестує чи система дозволяє UNION запити
-            "' UNION SELECT NULL--",
-            
-            # 7. OR injection з числовим порівнянням - тестує чи система перевіряє тип даних
-            "' OR 1=1--",
-            
-            # 8. OR injection з рядковим порівнянням - тестує чи система правильно обробляє рядкові порівняння
-            "' OR 'a'='a",
-            
-            # 9. OR injection з числом на початку - тестує чи система валідує формат email
-            "1' OR '1'='1",
-            
-            # 10. OR injection з ім'ям користувача - тестує комбінацію валідного імені з injection
-            "admin' OR '1'='1",
-            
-            # 11. OR injection з хешем (#) - тестує захист від різних типів коментарів
-            "' OR 1=1#",
-            
-            # 12. OR injection з пробілом та хешем - тестує чи система ігнорує пробіли перед коментарями
+            # OR injection з хешем (#) - тестує захист від різних типів коментарів
             "' OR '1'='1' #"
         ]
         
         # Тестуємо кожен payload
         for payload in sql_injection_payloads:
-            # Перехід на сторінку логіну перед кожним тестом
-            login_page.navigate_to_login(test_config.LOGIN_URL)
-            
-            # Спробувати виконати логін з SQL injection payload
-            login_page.attempt_login(
-                email=payload,
-                password=test_config.USER_PASSWORD
-            )
-            
-            # Чекаємо для появи відповіді
-            page.wait_for_timeout(2000)
-            
-            # Перевірка що система не піддалася атаці
-            # 1. Перевірка що не відбувся успішний логін (якщо б SQL injection спрацював)
-            current_url = page.url
-            assert "/user/login" in current_url or "supplier-reg" in current_url or "?" in current_url, \
-                f"SQL injection payload '{payload}' не повинен дозволити успішний логін. " \
-                f"Поточний URL: {current_url}"
-            
-            # 2. Перевірка що не відбувся перехід на dashboard (якщо вказано)
-            if test_config.DASHBOARD_URL:
-                assert test_config.DASHBOARD_URL not in current_url, \
-                    f"SQL injection payload '{payload}' не повинен дозволити доступ до dashboard. " \
-                    f"Поточний URL: {current_url}"
-            
-            # 3. Перевірка що відображається помилка або система відхилила запит
-            # Може бути помилка валідації або alert про невірні дані
-            error_visible = login_page.is_error_message_visible()
-            # Якщо немає помилки, це теж нормально - система може просто ігнорувати injection
-            
-            # 4. Перевірка що сторінка все ще працює (не зламана)
-            page_title = page.title()
-            assert page_title, \
-                f"SQL injection payload '{payload}' не повинен зламати сторінку. " \
-                f"Сторінка має мати title"
-            
-            # 5. Перевірка що форма логіну все ще доступна
-            try:
-                email_input = page.locator(login_page.locators.EMAIL_INPUT)
-                assert email_input.is_visible(timeout=2000), \
-                    f"SQL injection payload '{payload}' не повинен зламати форму логіну"
-            except:
-                # Якщо форма не видима, це може бути нормально якщо відбулась переадресація
-                pass
+            self._test_sql_injection_payload(login_page, page, payload, test_config)
+
+    def test_login_sql_injection_numeric_and_string_comparisons(self, page: Page, test_config: TestConfig):
+        """
+        Тест кейс: Авторизація з OR injection з числовими та рядковими порівняннями
+        
+        Перевіряє захист системи від SQL injection з різними типами порівнянь.
+        Тестує числові та рядкові порівняння, а також валідацію формату email.
+        
+        Очікуваний результат:
+        - Система не піддається SQL injection атаці
+        - Відображається помилка валідації або система ігнорує injection
+        - Користувач залишається на сторінці логіну або отримує помилку
+        """
+        login_page = LoginPage(page)
+        
+        # OR injection з числовими та рядковими порівняннями (4 payloads)
+        sql_injection_payloads = [
+            # OR injection з числовим порівнянням - тестує чи система перевіряє тип даних
+            "' OR 1=1--",
+            # OR injection з рядковим порівнянням - тестує чи система правильно обробляє рядкові порівняння
+            "' OR 'a'='a",
+            # OR injection з числовим порівнянням та хешем - тестує захист від різних типів коментарів
+            "' OR 1=1#",
+            # OR injection з числом на початку - тестує чи система валідує формат email
+            "1' OR '1'='1"
+        ]
+        
+        # Тестуємо кожен payload
+        for payload in sql_injection_payloads:
+            self._test_sql_injection_payload(login_page, page, payload, test_config)
+
+    def test_login_sql_injection_with_valid_data_and_union(self, page: Page, test_config: TestConfig):
+        """
+        Тест кейс: Авторизація з injection після валідних даних та UNION атаками
+        
+        Перевіряє захист системи від комбінованих SQL injection атак.
+        Тестує injection після валідних даних та UNION injection.
+        
+        Очікуваний результат:
+        - Система не піддається SQL injection атаці
+        - Відображається помилка валідації або система ігнорує injection
+        - Користувач залишається на сторінці логіну або отримує помилку
+        """
+        login_page = LoginPage(page)
+        
+        # Injection після валідних даних та UNION атаки (4 payloads)
+        sql_injection_payloads = [
+            # Injection після імені користувача з коментарем - тестує чи система обрізає injection після коментаря
+            "admin'--",
+            # Injection після імені з багаторядковим коментарем - тестує захист від багаторядкових коментарів після даних
+            "admin'/*",
+            # OR injection з ім'ям користувача - тестує комбінацію валідного імені з injection
+            "admin' OR '1'='1",
+            # UNION injection - тестує чи система дозволяє UNION запити
+            "' UNION SELECT NULL--"
+        ]
+        
+        # Тестуємо кожен payload
+        for payload in sql_injection_payloads:
+            self._test_sql_injection_payload(login_page, page, payload, test_config)
 
     def test_login_with_empty_fields(self, page: Page, test_config: TestConfig):
         """

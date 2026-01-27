@@ -1,0 +1,32 @@
+{
+    // Налаштування для pytest тест-ранера
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestArgs": [
+        "tests",
+        "-v"
+    ],
+    
+    // Автоматичне виявлення тестів
+    "python.testing.autoTestDiscoverOnSaveEnabled": true,
+    
+    // Налаштування для Python
+    "python.defaultInterpreterPath": "python",
+    
+    // Форматування коду
+    "python.formatting.provider": "none",
+    
+    // Лінтер
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": false,
+    
+    // Налаштування для Playwright
+    "playwright.reuseBrowser": false,
+    
+    // Приховати файли з .gitignore
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true
+    }
+}

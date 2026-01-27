@@ -29,7 +29,9 @@ test-results/
 playwright/.cache/
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
 .idea/
 *.swp
 *.swo
