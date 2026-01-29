@@ -28,6 +28,10 @@ playwright-report/
 test-results/
 playwright/.cache/
 
+# Test reports
+reports/
+*.html
+
 # IDE
 .vscode/*
 !.vscode/settings.json
