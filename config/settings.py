@@ -27,7 +27,8 @@ class TestConfig:
     USER_PASSWORD = os.getenv("TEST_USER_PASSWORD", "")
     
     # Дані для негативних тестів
-    NON_EXISTENT_USER_EMAIL = os.getenv("TEST_NON_EXISTENT_USER_EMAIL", "nonexistent_user@kasta.ua")
+    # Email користувача, якого не існує в системі (для негативних кейсів)
+    NON_EXISTENT_USER_EMAIL = os.getenv("TEST_NON_EXISTENT_USER_EMAIL", "")
     
     # URL після успішного логіну
     DASHBOARD_URL = os.getenv("TEST_DASHBOARD_URL", "")
@@ -41,6 +42,8 @@ class TestConfig:
             missing.append("TEST_USER_EMAIL")
         if not cls.USER_PASSWORD:
             missing.append("TEST_USER_PASSWORD")
+        if not cls.NON_EXISTENT_USER_EMAIL:
+            missing.append("TEST_NON_EXISTENT_USER_EMAIL")
         
         if missing:
             raise ValueError(

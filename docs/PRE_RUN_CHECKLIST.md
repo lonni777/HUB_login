@@ -6,7 +6,8 @@
 Переконайтеся, що файл `.env` містить:
 - ✅ `TEST_USER_EMAIL` - ваш реальний email для логіну
 - ✅ `TEST_USER_PASSWORD` - ваш реальний пароль
-- ✅ `TEST_LOGIN_URL` - URL сторінки логіну (за замовчуванням: https://hubtest.kasta.ua/user/login)
+- ✅ `TEST_LOGIN_URL` - URL сторінки логіну (наприклад: `https://hubtest.kasta.ua/user/login`)
+- ✅ `TEST_NON_EXISTENT_USER_EMAIL` - email користувача, якого не існує в системі (для негативних тестів)
 - ⚠️ `TEST_DASHBOARD_URL` - URL після успішного логіну (опціонально)
 
 ### 2. Перевірка залежностей
@@ -91,11 +92,11 @@ pytest --headed
 
 1. **Завантажує конфігурацію** з `.env` файлу
 2. **Відкриває браузер** Chromium
-3. **Переходить на сторінку логіну** (https://hubtest.kasta.ua/user/login)
+3. **Переходить на сторінку логіну** (URL з `TEST_LOGIN_URL` з `.env` файлу)
 4. **Знаходить поле email** за селектором `#email`
-5. **Вводить email** з конфігурації
+5. **Вводить email** з конфігурації (`TEST_USER_EMAIL`)
 6. **Знаходить поле паролю** за селектором `#password`
-7. **Вводить пароль** з конфігурації
+7. **Вводить пароль** з конфігурації (`TEST_USER_PASSWORD`)
 8. **Натискає кнопку входу** за селектором `#root-content > div:nth-child(2) > form > button`
 9. **Перевіряє успішний логін:**
    - Якщо вказано `TEST_DASHBOARD_URL` - перевіряє зміну URL
