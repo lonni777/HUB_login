@@ -12,8 +12,8 @@ class LoginLocators:
     PASSWORD_INPUT = "#password"
     
     # Кнопки
-    # Кнопка "Увійти" - оригінальний селектор (працює стабільно)
-    LOGIN_BUTTON = "#root-content > div:nth-child(2) > form > button"
+    # Кнопка "Увійти" - використовуємо role-based селектор
+    LOGIN_BUTTON = "role=button[name='Увійти']"
     # Альтернативні варіанти (якщо потрібні):
     # LOGIN_BUTTON = "form > button"  # Спрощений варіант (може не працювати якщо є кілька форм)
     # LOGIN_BUTTON = "button:has-text('Увійти')"  # Пошук по тексту
