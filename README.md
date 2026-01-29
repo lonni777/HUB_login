@@ -11,7 +11,13 @@ pip install -r requirements.txt
 
 2. Встановіть браузери для Playwright:
 ```bash
+# Встановити всі браузери
 playwright install
+
+# Або встановити конкретні браузери:
+playwright install chromium    # Chromium (за замовчуванням)
+playwright install webkit      # Safari (WebKit)
+playwright install firefox     # Firefox
 ```
 
 3. Створіть файл `.env` з конфігурацією:
@@ -41,19 +47,43 @@ playwright install
 
 ## Запуск тестів
 
+### Базові команди:
+
 ```bash
+# Запуск всіх тестів (за замовчуванням на Chromium)
 pytest
-```
 
-Запуск з детальним виводом:
-```bash
+# Запуск з детальним виводом
 pytest -v
-```
 
-Запуск конкретного тесту:
-```bash
+# Запуск конкретного тесту
 pytest tests/test_login.py::TestLogin::test_positive_login
 ```
+
+### Кросс-браузерне тестування:
+
+Проект підтримує тестування на різних браузерах:
+
+```bash
+# Запуск на Chromium (за замовчуванням)
+pytest tests/test_login.py --browser chromium
+
+# Запуск на Safari (WebKit)
+pytest tests/test_login.py --browser webkit
+
+# Запуск на Firefox
+pytest tests/test_login.py --browser firefox
+
+# Запуск з відкритим браузером (headed mode)
+pytest tests/test_login.py --headed --browser webkit
+```
+
+**Підтримувані браузери:**
+- ✅ **Chromium** (за замовчуванням)
+- ✅ **Safari (WebKit)**
+- ✅ **Firefox**
+
+Всі тести автоматично працюють на всіх підтримуваних браузерах без змін в коді.
 
 ## Структура проекту
 
