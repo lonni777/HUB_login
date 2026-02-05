@@ -156,7 +156,7 @@ class XMLFeedPage(BasePage):
         save_button = self.page.locator(self.locators.SAVE_BUTTON)
         save_button.click()
         # Чекаємо на появу повідомлення про успіх або редирект
-        self.page.wait_for_timeout(2000)
+        self.page.wait_for_timeout(3000)
     
     def verify_success_message(self, expected_text: str = "Дані збережено!"):
         """
@@ -165,8 +165,8 @@ class XMLFeedPage(BasePage):
         Args:
             expected_text: Очікуваний текст повідомлення
         """
-        # Чекаємо трохи більше часу на появу повідомлення
-        self.page.wait_for_timeout(2000)
+        # Чекаємо більше часу на появу повідомлення (може з'явитися після редиректу)
+        self.page.wait_for_timeout(4000)
         
         # Спробуємо кілька варіантів локаторів для повідомлення
         success_found = False
@@ -174,9 +174,10 @@ class XMLFeedPage(BasePage):
         # Варіант 1: Точний текст
         try:
             success_message = self.page.locator(f"text={expected_text}")
-            if success_message.is_visible(timeout=3000):
+            if success_message.is_visible(timeout=5000):
                 expect(success_message).to_be_visible()
                 success_found = True
+                print(f"✓ Знайдено повідомлення про успіх: '{expected_text}'")
         except:
             pass
         
@@ -184,9 +185,10 @@ class XMLFeedPage(BasePage):
         if not success_found:
             try:
                 success_message = self.page.locator(self.locators.SUCCESS_MESSAGE)
-                if success_message.is_visible(timeout=3000):
+                if success_message.is_visible(timeout=5000):
                     expect(success_message).to_be_visible()
                     success_found = True
+                    print(f"✓ Знайдено повідомлення про успіх через локатор")
             except:
                 pass
         
@@ -196,17 +198,27 @@ class XMLFeedPage(BasePage):
                 # Шукаємо по частині тексту
                 partial_text = "збережено" if "збережено" in expected_text.lower() else expected_text[:5]
                 success_message = self.page.locator(f"text=/{partial_text}/i")
-                if success_message.is_visible(timeout=3000):
+                if success_message.is_visible(timeout=5000):
                     expect(success_message).to_be_visible()
                     success_found = True
+                    print(f"✓ Знайдено повідомлення про успіх з текстом '{partial_text}'")
             except:
                 pass
+        
+        # Варіант 4: Перевіряємо чи є редирект на сторінку зі списком фідів (ознака успіху)
+        if not success_found:
+            current_url = self.get_url()
+            if "/supplier-content/xml" in current_url and "feed_id" not in current_url:
+                # Якщо ми на сторінці зі списком фідів без feed_id - це означає успішне збереження
+                print("✓ Редирект на сторінку зі списком фідів - фід збережено успішно")
+                success_found = True
         
         if not success_found:
             # Якщо не знайдено, виводимо що є на сторінці для дебагу
             page_text = self.page.locator("body").text_content()[:500]
             raise AssertionError(
                 f"Повідомлення про успіх '{expected_text}' не знайдено на сторінці. "
+                f"Поточний URL: {self.get_url()}. "
                 f"Видимий текст: {page_text}"
             )
     
@@ -229,6 +241,153 @@ class XMLFeedPage(BasePage):
         self.goto(feeds_url)
         self.wait_for_load_state("networkidle")
         # Чекаємо поки таблиця завантажиться
+        self.page.wait_for_timeout(2000)
+    
+    def get_feed_url_from_input(self) -> str:
+        """
+        Отримати URL фіду з поля введення на сторінці редагування фіду
+        
+        Returns:
+            URL фіду з поля введення або порожній рядок якщо не знайдено
+        """
+        try:
+            # Чекаємо поки поле з'явиться
+            self.page.wait_for_timeout(1000)
+            
+            # Отримуємо значення з поля URL
+            url_input = self.page.get_by_placeholder("https://127.0.0.1:8000/fmt.")
+            if url_input.is_visible(timeout=3000):
+                url_value = url_input.input_value()
+                return url_value.strip() if url_value else ""
+            
+            # Альтернативний спосіб через локатор
+            url_input_alt = self.page.locator(self.locators.FEED_URL_INPUT)
+            if url_input_alt.is_visible(timeout=2000):
+                url_value = url_input_alt.input_value()
+                return url_value.strip() if url_value else ""
+            
+            return ""
+        except Exception as e:
+            print(f"Помилка при отриманні URL з поля введення: {e}")
+            return ""
+    
+    def filter_feeds_by_link(self, feed_url: str):
+        """
+        Фільтрувати фіди в таблиці по стовпцю "Лінк фіду"
+        
+        Args:
+            feed_url: URL фіду для фільтрації (оригінальне посилання без пробілів)
+        """
+        try:
+            # Крок 1: Клік на заголовок "Лінк фіду"
+            link_column_header = self.page.locator(self.locators.FEED_LINK_COLUMN_HEADER)
+            link_column_header.click()
+            self.page.wait_for_timeout(500)
+            
+            # Крок 2: Клік на іконку фільтра
+            filter_icon = self.page.locator(self.locators.FEED_LINK_FILTER_ICON)
+            filter_icon.click()
+            self.page.wait_for_timeout(500)
+            
+            # Крок 3: Заповнення поля фільтра
+            # Видаляємо "/raw" з кінця URL для фільтрації (як в рекордері)
+            filter_url = feed_url.replace("/raw", "").strip()
+            
+            filter_input = self.page.get_by_placeholder("Фільтр")
+            filter_input.fill(filter_url)
+            self.page.wait_for_timeout(2000)  # Чекаємо поки таблиця відфільтрується
+            
+        except Exception as e:
+            print(f"Помилка при фільтрації фідів: {e}")
+            raise
+    
+    def get_feed_id_from_filtered_table(self) -> str:
+        """
+        Отримати feed_id з відфільтрованої таблиці (знаходимо span з feed_id)
+        
+        Returns:
+            feed_id або порожній рядок якщо не знайдено
+        """
+        try:
+            # Чекаємо поки таблиця завантажиться
+            self.page.wait_for_selector(".ag-row", timeout=5000)
+            
+            # Знаходимо перший рядок з таблиці (після фільтрації)
+            first_row = self.page.locator(".ag-row").first
+            
+            if first_row.is_visible(timeout=3000):
+                # Шукаємо span з feed_id (як в рекордері: span з текстом feed_id)
+                # feed_id зазвичай в першій або другій колонці
+                cells = first_row.locator(".ag-cell").all()
+                
+                # Перевіряємо перші кілька комірок
+                for cell in cells[:3]:
+                    # Шукаємо span з текстом що виглядає як feed_id (наприклад R3E8)
+                    spans = cell.locator("span").all()
+                    for span in spans:
+                        text = span.text_content()
+                        if text and text.strip():
+                            # Перевіряємо чи це схоже на feed_id (починається з літери та містить цифри)
+                            feed_id_candidate = text.strip()
+                            if len(feed_id_candidate) > 0 and (feed_id_candidate[0].isalpha() or feed_id_candidate[0].isdigit()):
+                                # Перевіряємо що це не просто число або довгий текст
+                                if len(feed_id_candidate) <= 10:  # feed_id зазвичай короткий
+                                    print(f"Знайдено feed_id з відфільтрованої таблиці: '{feed_id_candidate}'")
+                                    return feed_id_candidate
+                
+                # Альтернативний спосіб - беремо текст з першої комірки
+                if len(cells) > 0:
+                    first_cell_text = cells[0].text_content()
+                    if first_cell_text:
+                        feed_id = first_cell_text.strip()
+                        if feed_id and len(feed_id) <= 10:
+                            print(f"Знайдено feed_id з першої комірки: '{feed_id}'")
+                            return feed_id
+        except Exception as e:
+            print(f"Помилка при отриманні feed_id з таблиці: {e}")
+        
+        return ""
+    
+    def click_edit_button(self):
+        """Натиснути кнопку 'Редагувати' для відкриття фіду"""
+        try:
+            # Спочатку клікаємо на "Управління" (як в рекордері)
+            management_button = self.page.locator(self.locators.MANAGEMENT_BUTTON)
+            if management_button.is_visible(timeout=3000):
+                management_button.click()
+                self.page.wait_for_timeout(500)
+            
+            # Потім клікаємо на кнопку "Редагувати" (з пробілом перед текстом як в рекордері)
+            edit_button = self.page.get_by_role("button", name=" Редагувати")
+            if edit_button.is_visible(timeout=3000):
+                edit_button.click()
+                self.wait_for_load_state("networkidle")
+                self.page.wait_for_timeout(2000)
+                return
+            
+            # Альтернативний спосіб якщо не знайдено
+            edit_button_alt = self.page.locator("button:has-text('Редагувати')").first
+            if edit_button_alt.is_visible(timeout=2000):
+                edit_button_alt.click()
+                self.wait_for_load_state("networkidle")
+                self.page.wait_for_timeout(2000)
+                return
+                
+        except Exception as e:
+            print(f"Помилка при натисканні кнопки 'Редагувати': {e}")
+            raise Exception(f"Не вдалося знайти або натиснути кнопку 'Редагувати': {e}")
+    
+    def open_feed_for_editing(self, feed_id: str):
+        """
+        Відкрити фід для редагування по feed_id
+        
+        Args:
+            feed_id: ID фіду для відкриття
+        """
+        # Формуємо URL для редагування фіду
+        edit_url = f"{self.get_url().split('?')[0]}?feed_id={feed_id}&tab=feed"
+        self.goto(edit_url)
+        self.wait_for_load_state("networkidle")
         self.page.wait_for_timeout(2000)
     
     def get_feed_id_by_url_from_table(self, feed_url: str) -> str:

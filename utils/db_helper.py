@@ -96,6 +96,73 @@ class DBHelper:
             print(error_msg)
             raise Exception(error_msg)
     
+    def get_feed_url_by_id(self, feed_id: str) -> Optional[str]:
+        """
+        Отримати URL фіду з таблиці feed по feed_id
+        
+        Args:
+            feed_id: ID фіду
+        
+        Returns:
+            URL фіду або None якщо не знайдено
+        
+        Raises:
+            Exception: Якщо виникла помилка при запиті
+        """
+        if not self.connection:
+            if not self.connect():
+                raise Exception("Не вдалося підключитися до БД")
+        
+        try:
+            cursor = self.connection.cursor()
+            # Спробуємо різні варіанти назв колонок
+            possible_columns = ["feed_url", "url", "xml_url", "source_url"]
+            url_value = None
+            
+            for column_name in possible_columns:
+                try:
+                    query = sql.SQL("SELECT {} FROM feed WHERE feed_id = %s").format(
+                        sql.Identifier(column_name)
+                    )
+                    cursor.execute(query, (feed_id,))
+                    result = cursor.fetchone()
+                    if result and result[0]:
+                        url_value = result[0]
+                        print(f"Знайдено URL в колонці '{column_name}': {url_value}")
+                        break
+                except Exception as col_error:
+                    # Якщо колонка не існує, пробуємо наступну
+                    continue
+            
+            cursor.close()
+            
+            if url_value:
+                return url_value
+            else:
+                # Якщо не знайдено через колонки, спробуємо отримати всі дані
+                cursor = self.connection.cursor()
+                query = sql.SQL("SELECT * FROM feed WHERE feed_id = %s LIMIT 1")
+                cursor.execute(query, (feed_id,))
+                columns = [desc[0] for desc in cursor.description]
+                result = cursor.fetchone()
+                cursor.close()
+                
+                if result:
+                    print(f"Доступні колонки в таблиці feed: {columns}")
+                    # Шукаємо колонку що містить URL
+                    for i, col in enumerate(columns):
+                        if 'url' in col.lower():
+                            url_value = result[i]
+                            if url_value:
+                                print(f"Знайдено URL в колонці '{col}': {url_value}")
+                                return url_value
+                
+                return None
+        except Exception as e:
+            error_msg = f"Помилка при отриманні URL фіду з БД: {e}"
+            print(error_msg)
+            raise Exception(error_msg)
+    
     def __enter__(self):
         """Контекстний менеджер: вхід"""
         self.connect()
