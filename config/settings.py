@@ -33,6 +33,23 @@ class TestConfig:
     # URL після успішного логіну
     DASHBOARD_URL = os.getenv("TEST_DASHBOARD_URL", "")
     
+    # URL для XML-фідів
+    XML_FEEDS_URL = os.getenv("TEST_XML_FEEDS_URL", f"{BASE_URL}/supplier-content/xml")
+    XML_FEED_ADD_URL = os.getenv("TEST_XML_FEED_ADD_URL", f"{BASE_URL}/supplier-content/xml?feed_id=%20%20%20&tab=feed")
+    
+    # Тестовий XML-фід URL (з Git Gist)
+    TEST_XML_FEED_URL = os.getenv("TEST_XML_FEED_URL", "https://gist.github.com/lonni777/1eb5d08a1dfd4ad0fdf8666ab78ab5be/raw")
+    
+    # Постачальник для тестування XML-фідів
+    TEST_SUPPLIER_NAME = os.getenv("TEST_SUPPLIER_NAME", "Braggart")
+    
+    # Налаштування бази даних для очищення тестових даних
+    DB_HOST = os.getenv("TEST_DB_HOST", "")
+    DB_PORT = int(os.getenv("TEST_DB_PORT", "5432"))
+    DB_NAME = os.getenv("TEST_DB_NAME", "")
+    DB_USER = os.getenv("TEST_DB_USER", "")
+    DB_PASSWORD = os.getenv("TEST_DB_PASSWORD", "")
+    
     @classmethod
     def validate(cls):
         """Перевірка наявності обов'язкових змінних"""
