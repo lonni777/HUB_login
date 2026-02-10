@@ -39,6 +39,16 @@ class TestConfig:
     
     # Тестовий XML-фід URL (з Git Gist)
     TEST_XML_FEED_URL = os.getenv("TEST_XML_FEED_URL", "https://gist.github.com/lonni777/1eb5d08a1dfd4ad0fdf8666ab78ab5be/raw")
+    # URL з розширенням .xml але вмістом JSON (невалідна структура) — для негативного тесту
+    TEST_INVALID_XML_FEED_URL = os.getenv(
+        "TEST_INVALID_XML_FEED_URL",
+        "https://www.dropbox.com/scl/fi/o84mvoxjl0ro6iejsh60p/Untitled-1.xml?rlkey=p09wc82oxv8rfl5c4pho4bfin&st=8k4hz546&dl=1"
+    )
+    # URL що повертає 404 — для негативного тесту (змінено валідний gist URL)
+    TEST_404_FEED_URL = os.getenv(
+        "TEST_404_FEED_URL",
+        "https://gist.github.com/lonni777/1eb5d08a1dfd4ad0fdf8666ab78ab5be111/raw"
+    )
     
     # Постачальник для тестування XML-фідів
     TEST_SUPPLIER_NAME = os.getenv("TEST_SUPPLIER_NAME", "Парфюмс")

@@ -240,3 +240,123 @@ class TestXMLFeed:
         
         # Фінальна перевірка що cleanup виконано успішно
         assert cleanup_success, f"Cleanup не виконано для feed_id '{feed_id}'. Тест провалено!"
+    
+    def test_validate_url_save_invalid_xml_structure_json_inside(self, page: Page, test_config: TestConfig):
+        """
+        Тест кейс: Валідація url. Збереження url розширення xml невалідної структури фід (всередині json)
+        
+        Перевіряє що при додаванні фіду з URL файлу .xml, що містить JSON замість XML,
+        система показує помилку валідації та не створює запис в БД.
+        
+        Очікуваний результат:
+        1. Після натискання "Зберегти" — повідомлення про помилку валідації
+           (містить "Помилка валідації xml структури фіду" та "Unexpected character '{'")
+        2. В таблиці feed запис по origin_url не створено
+        """
+        invalid_feed_url = test_config.TEST_INVALID_XML_FEED_URL
+        
+        # Крок 1: Авторизація в хаб
+        login_page = LoginPage(page)
+        login_page.navigate_to_login(f"{test_config.LOGIN_URL}?next=/supplier-content/xml")
+        login_page.login(
+            email=test_config.USER_EMAIL,
+            password=test_config.USER_PASSWORD
+        )
+        login_page.verify_successful_login()
+        
+        # Крок 2: Вибір постачальника
+        xml_feed_page = XMLFeedPage(page)
+        xml_feed_page.select_supplier(test_config.TEST_SUPPLIER_NAME)
+        
+        # Крок 3: Перехід в Товари - Імпорт новинок - XML
+        xml_feed_page.navigate_to_xml_feeds_via_menu()
+        
+        # Крок 4: Натиснути "Додати новий фід" та додати URL з невалідною структурою
+        xml_feed_page.click_add_new_feed_button()
+        xml_feed_page.fill_feed_url(invalid_feed_url)
+        
+        # Крок 5: Проставити чекбокс "Завантажити товари з xml" та натиснути Зберегти
+        xml_feed_page.enable_upload_items_checkbox()
+        xml_feed_page.click_save_button()
+        
+        # Очікуваний результат 1: Повідомлення про помилку валідації
+        xml_feed_page.verify_validation_error_message("Помилка валідації xml структури фіду")
+        xml_feed_page.verify_validation_error_message("Unexpected character")
+        
+        # Очікуваний результат 2: Запис в БД не створено
+        if test_config.DB_HOST and test_config.DB_NAME:
+            with DBHelper(
+                host=test_config.DB_HOST,
+                port=test_config.DB_PORT,
+                database=test_config.DB_NAME,
+                user=test_config.DB_USER,
+                password=test_config.DB_PASSWORD
+            ) as db:
+                feed_exists = db.feed_exists_by_origin_url(invalid_feed_url)
+                assert not feed_exists, (
+                    f"Запис у таблиці feed по origin_url не повинен був створитися, "
+                    f"але він існує! URL: {invalid_feed_url}"
+                )
+            print("Підтверджено: запис у таблиці feed не створено")
+        else:
+            print("Попередження: налаштування БД не вказані, перевірка відсутності запису пропущена")
+    
+    def test_validate_url_save_unavailable_url_404(self, page: Page, test_config: TestConfig):
+        """
+        Тест кейс: Валідація url. Збереження недоступного URL (404 Not Found)
+        
+        Перевіряє що при додаванні фіду з URL, що повертає 404,
+        система показує помилку та не створює запис в БД.
+        
+        Очікуваний результат:
+        1. Після натискання "Зберегти" — повідомлення про помилку
+           (містить "Помилка валідації xml структури фіду" та "status 404")
+        2. В таблиці feed запис по origin_url не створено
+        """
+        url_404 = test_config.TEST_404_FEED_URL
+        
+        # Крок 1: Авторизація в хаб
+        login_page = LoginPage(page)
+        login_page.navigate_to_login(f"{test_config.LOGIN_URL}?next=/supplier-content/xml")
+        login_page.login(
+            email=test_config.USER_EMAIL,
+            password=test_config.USER_PASSWORD
+        )
+        login_page.verify_successful_login()
+        
+        # Крок 2: Вибір постачальника
+        xml_feed_page = XMLFeedPage(page)
+        xml_feed_page.select_supplier(test_config.TEST_SUPPLIER_NAME)
+        
+        # Крок 3: Перехід в Товари - Імпорт новинок - XML
+        xml_feed_page.navigate_to_xml_feeds_via_menu()
+        
+        # Крок 4: Натиснути "Додати новий фід" та додати URL що повертає 404
+        xml_feed_page.click_add_new_feed_button()
+        xml_feed_page.fill_feed_url(url_404)
+        
+        # Крок 5: Проставити чекбокс "Завантажити товари з xml" та натиснути Зберегти
+        xml_feed_page.enable_upload_items_checkbox()
+        xml_feed_page.click_save_button()
+        
+        # Очікуваний результат 1: Повідомлення про помилку (ключові фрази)
+        xml_feed_page.verify_validation_error_message("Помилка валідації xml структури фіду")
+        xml_feed_page.verify_validation_error_message("status 404")
+        
+        # Очікуваний результат 2: Запис в БД не створено
+        if test_config.DB_HOST and test_config.DB_NAME:
+            with DBHelper(
+                host=test_config.DB_HOST,
+                port=test_config.DB_PORT,
+                database=test_config.DB_NAME,
+                user=test_config.DB_USER,
+                password=test_config.DB_PASSWORD
+            ) as db:
+                feed_exists = db.feed_exists_by_origin_url(url_404)
+                assert not feed_exists, (
+                    f"Запис у таблиці feed по origin_url не повинен був створитися, "
+                    f"але він існує! URL: {url_404}"
+                )
+            print("Підтверджено: запис у таблиці feed не створено")
+        else:
+            print("Попередження: налаштування БД не вказані, перевірка відсутності запису пропущена")

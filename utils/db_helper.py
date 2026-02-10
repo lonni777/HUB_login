@@ -200,6 +200,32 @@ class DBHelper:
             print(error_msg)
             raise Exception(error_msg)
     
+    def feed_exists_by_origin_url(self, url: str) -> bool:
+        """
+        Перевірити чи існує фід з даним origin_url (або URL що містить цей рядок).
+        
+        Args:
+            url: URL для пошуку (базовий URL без фрагмента #ufeed)
+        
+        Returns:
+            True якщо знайдено запис, False якщо ні
+        """
+        if not self.connection:
+            if not self.connect():
+                raise Exception("Не вдалося підключитися до БД")
+        
+        try:
+            cursor = self.connection.cursor()
+            base_url = url.split("#")[0].strip()
+            query = sql.SQL("SELECT 1 FROM feed WHERE origin_url LIKE %s LIMIT 1")
+            cursor.execute(query, (f"%{base_url}%",))
+            result = cursor.fetchone()
+            cursor.close()
+            return result is not None
+        except Exception as e:
+            print(f"Помилка при перевірці існування фіду по URL: {e}")
+            return False
+    
     def __enter__(self):
         """Контекстний менеджер: вхід"""
         self.connect()

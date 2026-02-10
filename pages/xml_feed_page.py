@@ -230,6 +230,25 @@ class XMLFeedPage(BasePage):
                 f"Видимий текст: {page_text}"
             )
     
+    def verify_validation_error_message(self, contains_text: str, timeout: int = 10000):
+        """
+        Перевірити що на сторінці відображається повідомлення про помилку валідації,
+        що містить очікуваний текст.
+        
+        Args:
+            contains_text: Частина тексту помилки (наприклад "Помилка валідації xml структури фіду")
+            timeout: Таймаут очікування в мс
+        """
+        self.page.wait_for_timeout(3000)
+        page_content = self.page.locator("body").text_content() or ""
+        if contains_text.lower() not in page_content.lower():
+            raise AssertionError(
+                f"Повідомлення про помилку з текстом '{contains_text}' не знайдено на сторінці. "
+                f"Поточний URL: {self.get_url()}. "
+                f"Видимий текст (фрагмент): {page_content[:800]}"
+            )
+        print(f"Знайдено повідомлення про помилку валідації з текстом: '{contains_text}'")
+    
     def verify_redirect_to_feeds_list(self, expected_url: str):
         """
         Перевірити редирект на сторінку зі списком фідів
