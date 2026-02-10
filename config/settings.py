@@ -41,11 +41,11 @@ class TestConfig:
     TEST_XML_FEED_URL = os.getenv("TEST_XML_FEED_URL", "https://gist.github.com/lonni777/1eb5d08a1dfd4ad0fdf8666ab78ab5be/raw")
     
     # Постачальник для тестування XML-фідів
-    TEST_SUPPLIER_NAME = os.getenv("TEST_SUPPLIER_NAME", "Braggart")
+    TEST_SUPPLIER_NAME = os.getenv("TEST_SUPPLIER_NAME", "Парфюмс")
     
     # Існуючий feed_id для тестування Excel мапінгу (для оптимізації - використовуємо замість створення нового)
-    # Використовується фід постачальника Braggart з ID R2K3
-    TEST_EXISTING_FEED_ID = os.getenv("TEST_EXISTING_FEED_ID", "R2K3")
+    # Використовується фід постачальника Парфюмс з ID R3DV
+    TEST_EXISTING_FEED_ID = os.getenv("TEST_EXISTING_FEED_ID", "R3DV")
     
     # Налаштування бази даних для очищення тестових даних
     DB_HOST = os.getenv("TEST_DB_HOST", "")

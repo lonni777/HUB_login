@@ -20,7 +20,7 @@ class TestExcelMapping:
         Тест кейс: Скачування та завантаження Excel файлу мапінгу
         
         Перевіряє:
-        1. Відкриття існуючого фіду (використовується фід R2K3 постачальника Braggart)
+        1. Відкриття існуючого фіду (використовується фід R3DV постачальника Парфюмс)
         2. Скачування Excel файлу мапінгу (зберігається з ім'ям feed_id_YYYYMMDD_HHMMSS.xlsx)
         3. Перевірка структури Excel файлу (наявність вкладок, перевірка вкладки "Категорія+")
         4. Завантаження цього ж Excel файлу назад в систему
@@ -39,7 +39,7 @@ class TestExcelMapping:
         )
         login_page.verify_successful_login()
         
-        # Крок 2: Вибір постачальника "Braggart"
+        # Крок 2: Вибір постачальника "Парфюмс"
         xml_feed_page = XMLFeedPage(page)
         xml_feed_page.select_supplier(test_config.TEST_SUPPLIER_NAME)
         
@@ -235,7 +235,7 @@ class TestExcelMapping:
         Тест кейс: Валідація структури та даних Excel файлу мапінгу
         
         Перевіряє:
-        1. Відкриття існуючого фіду (використовується фід R2K3 постачальника Braggart)
+        1. Відкриття існуючого фіду (використовується фід R3DV постачальника Парфюмс)
         2. Скачування Excel файлу мапінгу
         3. Перевірка наявності всіх очікуваних вкладок (10 вкладок)
         4. Перевірка даних у вкладці "Категорія+" - порівняння з XML-фідом:
@@ -272,14 +272,14 @@ class TestExcelMapping:
         )
         login_page.verify_successful_login()
         
-        # Крок 2: Вибір постачальника "Braggart"
+        # Крок 2: Вибір постачальника "Парфюмс"
         xml_feed_page = XMLFeedPage(page)
         xml_feed_page.select_supplier(test_config.TEST_SUPPLIER_NAME)
         
         # Крок 3: Перехід в Товари - Імпорт новинок - XML
         xml_feed_page.navigate_to_xml_feeds_via_menu()
         
-        # Крок 4: Відкриваємо існуючий фід R2K3
+        # Крок 4: Відкриваємо існуючий фід R3DV
         print(f"Відкриваємо існуючий фід: {feed_id}")
         feed_edit_url = f"{test_config.XML_FEEDS_URL}?feed_id={feed_id}&tab=feed"
         xml_feed_page.goto(feed_edit_url)
@@ -330,7 +330,7 @@ class TestExcelMapping:
             if len(excel_categories) == 0:
                 raise AssertionError("Вкладка 'Категорія+' порожня або не містить даних")
             
-            # Порівнюємо з XML-фідом: використовуємо URL саме цього фіду (R2K3) з БД,
+            # Порівнюємо з XML-фідом: використовуємо URL саме цього фіду (R3DV) з БД,
             # щоб Excel відповідав тому XML, з якого згенерований
             xml_feed_url = None
             if test_config.DB_HOST and test_config.DB_NAME:

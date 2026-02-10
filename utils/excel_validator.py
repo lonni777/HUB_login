@@ -326,11 +326,20 @@ class ExcelValidator:
             })
         
         # Перевіряємо назви категорій для спільних ID
+        # Excel може мати ієрархічний формат "Батько > Дочірня категорія", XML — лише назву
+        def _names_match(excel_name: str, xml_name: str) -> bool:
+            if excel_name == xml_name:
+                return True
+            # Excel: "Дім і сад > Домашній текстиль", XML: "Домашній текстиль"
+            if excel_name.endswith(" > " + xml_name) or excel_name.strip().endswith(xml_name):
+                return True
+            return False
+        
         common_ids = excel_ids & xml_ids
         for cat_id in common_ids:
             excel_name = excel_categories_dict[cat_id]
             xml_name = xml_categories_dict[cat_id]
-            if excel_name != xml_name:
+            if not _names_match(excel_name, xml_name):
                 mismatched_names.append({
                     "id": cat_id,
                     "excel_name": excel_name,
