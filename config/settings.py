@@ -43,6 +43,10 @@ class TestConfig:
     # Постачальник для тестування XML-фідів
     TEST_SUPPLIER_NAME = os.getenv("TEST_SUPPLIER_NAME", "Braggart")
     
+    # Існуючий feed_id для тестування Excel мапінгу (для оптимізації - використовуємо замість створення нового)
+    # Використовується фід постачальника Braggart з ID R2K3
+    TEST_EXISTING_FEED_ID = os.getenv("TEST_EXISTING_FEED_ID", "R2K3")
+    
     # Налаштування бази даних для очищення тестових даних
     DB_HOST = os.getenv("TEST_DB_HOST", "")
     DB_PORT = int(os.getenv("TEST_DB_PORT", "5432"))

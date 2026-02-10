@@ -40,3 +40,8 @@ class XMLFeedLocators:
     FEED_LINK_FILTER_INPUT = "placeholder=Фільтр"  # Поле фільтра
     MANAGEMENT_BUTTON = "text=Управління[exact=true]"  # Кнопка "Управління"
     EDIT_BUTTON = "role=button[name=' Редагувати']"  # Кнопка редагування (з пробілом перед текстом!)
+    
+    # Excel мапінг
+    DOWNLOAD_EXCEL_MAPPING_BUTTON = "text=Отримати файл для ручного мапінгу"  # Кнопка скачування Excel файлу мапінгу
+    UPLOAD_EXCEL_MAPPING_BUTTON = "text=Завантажити ручний мапінг категорій"  # Кнопка завантаження Excel файлу мапінгу
+    UPLOAD_EXCEL_INPUT = "input[type='file']"  # Поле для завантаження Excel файлу (може бути приховане)

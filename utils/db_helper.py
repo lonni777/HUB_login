@@ -96,6 +96,43 @@ class DBHelper:
             print(error_msg)
             raise Exception(error_msg)
     
+    def deactivate_feed_by_id(self, feed_id: str) -> bool:
+        """
+        Вимкнути фід (встановити is_active = false) в таблиці feed.
+        
+        Args:
+            feed_id: ID фіду для вимкнення
+        
+        Returns:
+            True якщо вимкнення успішне, False якщо ні
+        
+        Raises:
+            Exception: Якщо вимкнення не вдалося
+        """
+        if not self.connection:
+            if not self.connect():
+                raise Exception("Не вдалося підключитися до БД")
+        
+        try:
+            cursor = self.connection.cursor()
+            
+            # Встановлюємо is_active = false для фіду
+            print(f"Вимкнення фіду з ID '{feed_id}' (is_active = false)...")
+            query = sql.SQL("UPDATE feed SET is_active = false WHERE feed_id = %s")
+            cursor.execute(query, (feed_id,))
+            rows_updated = cursor.rowcount
+            cursor.close()
+            
+            if rows_updated > 0:
+                print(f"Фід з ID '{feed_id}' успішно вимкнено (is_active = false)")
+                return True
+            else:
+                raise Exception(f"Фід з ID '{feed_id}' не знайдено в БД або вже вимкнено")
+        except Exception as e:
+            error_msg = f"Помилка при вимкненні фіду в БД: {e}"
+            print(error_msg)
+            raise Exception(error_msg)
+    
     def get_feed_url_by_id(self, feed_id: str) -> Optional[str]:
         """
         Отримати URL фіду з таблиці feed по feed_id

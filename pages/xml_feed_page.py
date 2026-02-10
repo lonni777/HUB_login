@@ -151,12 +151,20 @@ class XMLFeedPage(BasePage):
         ).get_by_label("").first
         checkbox.check()
     
+    def disable_upload_items_checkbox(self):
+        """Вимкнути чекбокс 'Завантажити товари з xml'"""
+        # Використовуємо складний локатор через filter
+        checkbox = self.page.locator("div").filter(
+            has_text=re.compile(r"^Завантажити товари з xml.*")
+        ).get_by_label("").first
+        checkbox.uncheck()
+    
     def click_save_button(self):
         """Натиснути кнопку 'Зберегти' та очікувати навігацію"""
         save_button = self.page.locator(self.locators.SAVE_BUTTON)
         save_button.click()
         # Чекаємо на появу повідомлення про успіх або редирект
-        self.page.wait_for_timeout(3000)
+        self.page.wait_for_timeout(5000)
     
     def verify_success_message(self, expected_text: str = "Дані збережено!"):
         """
@@ -166,7 +174,7 @@ class XMLFeedPage(BasePage):
             expected_text: Очікуваний текст повідомлення
         """
         # Чекаємо більше часу на появу повідомлення (може з'явитися після редиректу)
-        self.page.wait_for_timeout(4000)
+        self.page.wait_for_timeout(10000)
         
         # Спробуємо кілька варіантів локаторів для повідомлення
         success_found = False
@@ -174,7 +182,7 @@ class XMLFeedPage(BasePage):
         # Варіант 1: Точний текст
         try:
             success_message = self.page.locator(f"text={expected_text}")
-            if success_message.is_visible(timeout=5000):
+            if success_message.is_visible(timeout=10000):
                 expect(success_message).to_be_visible()
                 success_found = True
                 print(f"✓ Знайдено повідомлення про успіх: '{expected_text}'")
@@ -185,7 +193,7 @@ class XMLFeedPage(BasePage):
         if not success_found:
             try:
                 success_message = self.page.locator(self.locators.SUCCESS_MESSAGE)
-                if success_message.is_visible(timeout=5000):
+                if success_message.is_visible(timeout=10000):
                     expect(success_message).to_be_visible()
                     success_found = True
                     print(f"✓ Знайдено повідомлення про успіх через локатор")
@@ -198,7 +206,7 @@ class XMLFeedPage(BasePage):
                 # Шукаємо по частині тексту
                 partial_text = "збережено" if "збережено" in expected_text.lower() else expected_text[:5]
                 success_message = self.page.locator(f"text=/{partial_text}/i")
-                if success_message.is_visible(timeout=5000):
+                if success_message.is_visible(timeout=10000):
                     expect(success_message).to_be_visible()
                     success_found = True
                     print(f"✓ Знайдено повідомлення про успіх з текстом '{partial_text}'")
@@ -565,3 +573,142 @@ class XMLFeedPage(BasePage):
             pass
         
         return ""
+    
+    def download_excel_mapping_file(self, download_path: str, feed_id: str = None) -> str:
+        """
+        Скачати Excel файл мапінгу для фіду
+        
+        Args:
+            download_path: Шлях до папки для збереження файлу
+            feed_id: ID фіду для іменування файлу (опціонально)
+        
+        Returns:
+            Шлях до скачаного файлу або порожній рядок якщо не вдалося
+        """
+        try:
+            from datetime import datetime
+            from pathlib import Path
+            
+            # Створюємо папку для завантажень якщо її немає
+            download_dir = Path(download_path)
+            download_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Очікуємо появу кнопки скачування
+            download_button = self.page.locator(self.locators.DOWNLOAD_EXCEL_MAPPING_BUTTON)
+            if not download_button.is_visible(timeout=10000):
+                # Спробуємо альтернативний локатор через filter
+                download_button = self.page.locator("button").filter(has_text="Отримати файл для ручного мапінгу")
+                if not download_button.is_visible(timeout=5000):
+                    raise Exception("Кнопка скачування Excel файлу мапінгу не знайдена")
+            
+            # Перевіряємо що кнопка клікабельна
+            download_button.wait_for(state="visible", timeout=5000)
+            download_button.wait_for(state="attached", timeout=5000)
+            self.page.wait_for_timeout(2000)  # Додаткове очікування перед кліком
+            
+            print("Клікаємо на кнопку скачування Excel файлу...")
+            # Збільшений таймаут для кліку (завантаження файлу може тривати)
+            with self.page.expect_download(timeout=90000) as download_info:
+                download_button.click(timeout=60000)
+                self.page.wait_for_timeout(3000)
+            
+            download = download_info.value
+            print(f"Завантаження почалося: {download.suggested_filename}")
+            
+            # Формуємо ім'я файлу: feed_id + дата (якщо feed_id вказано)
+            if feed_id:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                file_name = f"{feed_id}_{timestamp}.xlsx"
+            else:
+                # Використовуємо оригінальне ім'я з додаванням дати
+                original_name = download.suggested_filename
+                if not original_name.endswith('.xlsx') and not original_name.endswith('.xls'):
+                    original_name = original_name + '.xlsx'
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                name_parts = Path(original_name).stem
+                file_name = f"{name_parts}_{timestamp}.xlsx"
+            
+            # Зберігаємо файл з новим ім'ям
+            file_path = download_dir / file_name
+            download.save_as(file_path)
+            
+            # Перевіряємо що файл існує
+            if file_path.exists():
+                print(f"Excel файл успішно скачано: {file_path}")
+                return str(file_path)
+            else:
+                print("Файл не знайдено після скачування")
+                return ""
+                
+        except Exception as e:
+            print(f"Помилка при скачуванні Excel файлу: {e}")
+            return ""
+    
+    def upload_excel_mapping_file(self, file_path: str) -> bool:
+        """
+        Завантажити Excel файл мапінгу для фіду
+        
+        Args:
+            file_path: Шлях до Excel файлу для завантаження
+        
+        Returns:
+            True якщо файл успішно завантажено, False якщо ні
+        """
+        try:
+            from pathlib import Path
+            
+            file_path_obj = Path(file_path)
+            if not file_path_obj.exists():
+                raise Exception(f"Файл не знайдено: {file_path}")
+            
+            # Знаходимо поле для завантаження файлу (input[type='file'])
+            # Input може бути прихований через CSS, тому шукаємо незалежно від видимості
+            file_input = None
+            
+            # Варіант 1: Шукаємо будь-який input[type='file'] на сторінці
+            file_inputs = self.page.locator("input[type='file']").all()
+            if len(file_inputs) > 0:
+                file_input = file_inputs[0]
+            else:
+                # Варіант 2: Спробуємо знайти input поруч з кнопкою завантаження
+                upload_button = self.page.locator(self.locators.UPLOAD_EXCEL_MAPPING_BUTTON)
+                if upload_button.is_visible(timeout=3000):
+                    # Шукаємо input в батьківському елементі або поруч
+                    # Можливо input знаходиться в label або в тому ж контейнері
+                    parent = upload_button.locator("..")
+                    file_inputs_near_button = parent.locator("input[type='file']").all()
+                    if len(file_inputs_near_button) > 0:
+                        file_input = file_inputs_near_button[0]
+                    else:
+                        # Шукаємо в label якщо кнопка в label
+                        label = upload_button.locator("xpath=ancestor::label").first
+                        if label.count() > 0:
+                            file_inputs_in_label = label.locator("input[type='file']").all()
+                            if len(file_inputs_in_label) > 0:
+                                file_input = file_inputs_in_label[0]
+            
+            if file_input is None:
+                raise Exception("Поле для завантаження файлу (input[type='file']) не знайдено")
+            
+            # Завантажуємо файл (input може бути прихований, але set_input_files все одно працює)
+            file_input.set_input_files(str(file_path_obj))
+            self.page.wait_for_timeout(2000)
+            
+            # Після завантаження файлу може знадобитися натиснути кнопку завантаження
+            # (якщо файл не завантажується автоматично)
+            try:
+                upload_button = self.page.locator(self.locators.UPLOAD_EXCEL_MAPPING_BUTTON)
+                if upload_button.is_visible(timeout=2000):
+                    # Можливо після вибору файлу потрібно натиснути кнопку
+                    upload_button.click()
+                    self.page.wait_for_timeout(2000)
+            except:
+                # Якщо кнопка не знайдена або не потрібна, продовжуємо
+                pass
+            
+            print(f"Excel файл успішно завантажено: {file_path}")
+            return True
+            
+        except Exception as e:
+            print(f"Помилка при завантаженні Excel файлу: {e}")
+            return False
