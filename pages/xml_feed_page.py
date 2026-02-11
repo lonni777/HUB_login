@@ -48,6 +48,61 @@ class XMLFeedPage(BasePage):
         self.page.locator(self.locators.XML_TAB_LINK).click()
         self.wait_for_load_state("networkidle")
     
+    def open_feed_from_table_by_id(self, feed_id: str):
+        """
+        Відкрити фід для редагування, клікнувши кнопку "Редагувати" в рядку таблиці.
+        Потрібно бути на сторінці з таблицею фідів.
+        """
+        self.page.wait_for_timeout(3000)
+        row = self.page.get_by_role("row").filter(has_text=feed_id).first
+        row.wait_for(state="visible", timeout=10000)
+        edit_btn = row.get_by_role("button", name=re.compile(r"Редагувати", re.I))
+        edit_btn.click()
+        self.wait_for_load_state("networkidle")
+    
+    def sort_table_by_last_upload_desc(self):
+        """
+        Відсортувати таблицю фідів по стовпцю "Останнє завантаження" (найсвіжіші зверху).
+        Клік двічі: перший клік — asc, другий — desc (найновіші зверху).
+        """
+        self.page.wait_for_selector(".ag-row", timeout=10000)
+        header = self.page.locator(self.locators.LAST_UPLOAD_COLUMN_HEADER).first
+        header.wait_for(state="visible", timeout=5000)
+        header.click()
+        self.page.wait_for_timeout(1500)
+        header.click()  # Другий клік — descending (найсвіжіші зверху)
+        self.page.wait_for_timeout(2000)
+    
+    def get_first_n_feed_ids(self, n: int = 4) -> list:
+        """
+        Отримати feed_id з перших n рядків таблиці (після сортування).
+        
+        Args:
+            n: Кількість feed_id для отримання
+        
+        Returns:
+            Список feed_id (наприклад ['R3DV', 'R2K3', ...])
+        """
+        self.page.wait_for_selector(".ag-row", timeout=10000)
+        rows = self.page.locator(".ag-row").all()
+        feed_ids = []
+        for i, row in enumerate(rows):
+            if i >= n:
+                break
+            try:
+                cells = row.locator(".ag-cell").all()
+                feed_id = None
+                for cell in cells[:4]:  # Перевіряємо перші 4 комірки
+                    text = (cell.text_content() or "").strip()
+                    if text and re.match(r"^[A-Za-z][A-Za-z0-9]{2,9}$", text) and text not in feed_ids:
+                        feed_id = text
+                        break
+                if feed_id:
+                    feed_ids.append(feed_id)
+            except Exception:
+                continue
+        return feed_ids
+    
     def select_supplier(self, supplier_name: str):
         """
         Вибір постачальника зі списку
@@ -229,6 +284,16 @@ class XMLFeedPage(BasePage):
                 f"Поточний URL: {self.get_url()}. "
                 f"Видимий текст: {page_text}"
             )
+    
+    def has_validation_error_message(self, contains_text: str) -> bool:
+        """
+        Перевірити чи є на сторінці текст помилки (без raise).
+        
+        Returns:
+            True якщо текст знайдено, False якщо ні
+        """
+        page_content = self.page.locator("body").text_content() or ""
+        return contains_text.lower() in page_content.lower()
     
     def verify_validation_error_message(self, contains_text: str, timeout: int = 10000):
         """

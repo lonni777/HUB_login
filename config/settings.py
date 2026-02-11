@@ -56,6 +56,10 @@ class TestConfig:
     # Існуючий feed_id для тестування Excel мапінгу (для оптимізації - використовуємо замість створення нового)
     # Використовується фід постачальника Парфюмс з ID R3DV
     TEST_EXISTING_FEED_ID = os.getenv("TEST_EXISTING_FEED_ID", "R3DV")
+    # 4 feed_id для тесту обмеження "3 активні фіди" (через кому)
+    # Вмикаємо 3, при спробі вмикнути 4-й — очікується помилка
+    _feed_ids_str = os.getenv("TEST_FEED_IDS_FOR_LIMIT", "R3DV,R2K3,R3DX,R3DY")
+    TEST_FEED_IDS_FOR_LIMIT = [x.strip() for x in _feed_ids_str.split(",") if x.strip()]
     
     # Налаштування бази даних для очищення тестових даних
     DB_HOST = os.getenv("TEST_DB_HOST", "")

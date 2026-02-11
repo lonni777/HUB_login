@@ -360,3 +360,96 @@ class TestXMLFeed:
             print("Підтверджено: запис у таблиці feed не створено")
         else:
             print("Попередження: налаштування БД не вказані, перевірка відсутності запису пропущена")
+    
+    def test_limit_3_active_feeds(self, page: Page, test_config: TestConfig):
+        """
+        Тест кейс: Обмеження "3 активні фіди"
+        
+        Перевіряє що при спробі вмикнути фід, коли вже 3 активні,
+        система показує помилку "Неможливо підключити більше 3х фідів. Вимкніть спочатку один з фідів".
+        
+        У таблиці можуть вже бути включені фіди — помилка може з’явитись на 1-й, 2-й або 3-й спробі.
+        Проходимо по списку фідів, вмикаємо по черзі, до появи помилки.
+        Cleanup: вимкнення увімкнених фідів через БД.
+        """
+        # Крок 1: Авторизація в хаб
+        login_page = LoginPage(page)
+        login_page.navigate_to_login(f"{test_config.LOGIN_URL}?next=/supplier-content/xml")
+        login_page.login(
+            email=test_config.USER_EMAIL,
+            password=test_config.USER_PASSWORD
+        )
+        login_page.verify_successful_login()
+        
+        # Крок 2: Вибір постачальника
+        xml_feed_page = XMLFeedPage(page)
+        xml_feed_page.select_supplier(test_config.TEST_SUPPLIER_NAME)
+        
+        # Крок 3: Перехід в Товари - Імпорт новинок - XML
+        xml_feed_page.navigate_to_xml_feeds_via_menu()
+        
+        # Крок 4: Сортування по "Останнє завантаження" та отримання 4 найсвіжіших фідів
+        xml_feed_page.sort_table_by_last_upload_desc()
+        feed_ids = xml_feed_page.get_first_n_feed_ids(n=4)
+        if len(feed_ids) < 4:
+            pytest.skip(f"У таблиці менше 4 фідів (знайдено {len(feed_ids)})")
+        print(f"Обрано 4 найсвіжіших фіди: {feed_ids}")
+        
+        # Вмикаємо фіди по черзі — помилка може з’явитись на будь-якій спробі
+        enabled_feed_ids = []
+        error_received = False
+        
+        for i, feed_id in enumerate(feed_ids):
+            print(f"Спроба вмикнути фід {i + 1}/4: {feed_id}")
+            try:
+                xml_feed_page.open_feed_from_table_by_id(feed_id)
+            except Exception as e:
+                print(f"Не вдалося відкрити фід {feed_id} з таблиці: {e}, пробуємо через URL")
+                feed_url = f"{test_config.XML_FEEDS_URL}?feed_id={feed_id}&tab=feed"
+                xml_feed_page.goto(feed_url)
+                xml_feed_page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(2000)
+            # Клік "Редагувати" для переходу в режим редагування
+            xml_feed_page.click_edit_button()
+            page.wait_for_timeout(1500)
+            xml_feed_page.enable_upload_items_checkbox()
+            page.wait_for_timeout(500)
+            xml_feed_page.click_save_button()
+            page.wait_for_timeout(3000)
+            
+            if xml_feed_page.has_validation_error_message("більше 3") and xml_feed_page.has_validation_error_message("фідів"):
+                print(f"Отримано очікувану помилку при спробі вмикнути фід {feed_id}")
+                error_received = True
+                break
+            
+            # Збережено успішно — повертаємось до таблиці для наступного фіду
+            enabled_feed_ids.append(feed_id)
+            print(f"Фід {feed_id} успішно вмикнено")
+            xml_feed_page.goto(test_config.XML_FEEDS_URL)
+            xml_feed_page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(2000)
+        
+        assert error_received, (
+            "Очікувалась помилка 'Неможливо підключити більше 3х фідів', "
+            "але вдалося вмикнути всі 4 фіди без помилки"
+        )
+        
+        # Cleanup: вимкнути фіди, які ми вмикали під час тесту
+        if test_config.DB_HOST and test_config.DB_NAME and enabled_feed_ids:
+            for fid in enabled_feed_ids:
+                try:
+                    with DBHelper(
+                        host=test_config.DB_HOST,
+                        port=test_config.DB_PORT,
+                        database=test_config.DB_NAME,
+                        user=test_config.DB_USER,
+                        password=test_config.DB_PASSWORD
+                    ) as db:
+                        db.deactivate_feed_by_id(fid)
+                    print(f"Фід {fid} вимкнено через БД")
+                except Exception as e:
+                    error_msg = f"КРИТИЧНА ПОМИЛКА: Не вдалося вимкнути фід {fid} - {e}"
+                    print(error_msg)
+                    pytest.fail(error_msg)
+        elif not enabled_feed_ids:
+            print("Увімкнених фідів немає — cleanup не потрібен")

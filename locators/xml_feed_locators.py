@@ -36,6 +36,7 @@ class XMLFeedLocators:
     FEEDS_TABLE = "#root-content"
     FEED_ID_COLUMN = "div:nth-child(3) > .ag-header-cell-comp-wrapper > .ag-cell-label-container > .ag-header-cell-label"
     FEED_LINK_COLUMN_HEADER = "text=Лінк фіду"  # Заголовок стовпця "Лінк фіду"
+    LAST_UPLOAD_COLUMN_HEADER = "text=Останнє завантаження"  # Стовпець для сортування найсвіжіших фідів
     FEED_LINK_FILTER_ICON = "div:nth-child(4) > .ag-header-cell-comp-wrapper > .ag-cell-label-container > .ag-header-icon > .ag-icon"  # Іконка фільтра для "Лінк фіду"
     FEED_LINK_FILTER_INPUT = "placeholder=Фільтр"  # Поле фільтра
     MANAGEMENT_BUTTON = "text=Управління[exact=true]"  # Кнопка "Управління"
