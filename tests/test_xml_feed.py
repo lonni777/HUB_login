@@ -361,6 +361,254 @@ class TestXMLFeed:
         else:
             print("Попередження: налаштування БД не вказані, перевірка відсутності запису пропущена")
     
+    def test_tc_xml_003_empty_url_validation(self, page: Page, test_config: TestConfig):
+        """
+        TC-XML-003: Порожнє поле URL
+        
+        Перевіряє що при спробі зберегти фід з порожнім URL
+        відображається помилка валідації та запис у таблиці feed не створюється.
+        
+        Кроки:
+        - Авторизуватися, обрати постачальника
+        - Товари → Імпорт новинок → XML
+        - Натиснути "Додати новий фід"
+        - Залишити поле URL порожнім
+        - Увімкнути чекбокс "Завантажити товари з xml"
+        - Натиснути "Зберегти"
+        
+        Очікуваний результат:
+        - Помилка валідації (не дозволено зберегти без URL)
+        - Запис у таблиці feed не створюється
+        """
+        # Крок 1: Авторизація в хаб
+        login_page = LoginPage(page)
+        login_page.navigate_to_login(f"{test_config.LOGIN_URL}?next=/supplier-content/xml")
+        login_page.login(
+            email=test_config.USER_EMAIL,
+            password=test_config.USER_PASSWORD
+        )
+        login_page.verify_successful_login()
+        
+        # Крок 2: Вибір постачальника
+        xml_feed_page = XMLFeedPage(page)
+        xml_feed_page.select_supplier(test_config.TEST_SUPPLIER_NAME)
+        
+        # Крок 3: Перехід в Товари - Імпорт новинок - XML
+        xml_feed_page.navigate_to_xml_feeds_via_menu()
+        
+        # Зберігаємо кількість рядків до дії (для перевірки що запис не створено)
+        feeds_count_before = xml_feed_page.get_feeds_table_row_count()
+        
+        # Крок 4: Натиснути "Додати новий фід"
+        xml_feed_page.click_add_new_feed_button()
+        
+        # Крок 5: Залишити поле URL порожнім (переконаємось що воно очищене)
+        xml_feed_page.clear_feed_url()
+        page.wait_for_timeout(500)
+        
+        # Крок 6: Увімкнути чекбокс "Завантажити товари з xml"
+        xml_feed_page.enable_upload_items_checkbox()
+        
+        # Крок 7: Натиснути "Зберегти"
+        xml_feed_page.click_save_button()
+        page.wait_for_timeout(3000)
+        
+        # Очікуваний результат 1: Помилка валідації (повідомлення про порожнє/обов'язкове поле URL)
+        has_error = (
+            xml_feed_page.has_validation_error_message("URL")
+            or xml_feed_page.has_validation_error_message("порожн")
+            or xml_feed_page.has_validation_error_message("обов'язков")
+            or xml_feed_page.has_validation_error_message("заповніть")
+        )
+        assert has_error, (
+            "Очікувалось повідомлення про помилку валідації (URL/порт/обов'язкове поле), "
+            "але воно не відображається"
+        )
+        print("Підтверджено: відображається помилка валідації")
+        
+        # Очікуваний результат 2: Запис у таблиці feed не створено
+        xml_feed_page.goto(test_config.XML_FEEDS_URL)
+        xml_feed_page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(2000)
+        feeds_count_after = xml_feed_page.get_feeds_table_row_count()
+        assert feeds_count_after == feeds_count_before, (
+            f"Очікувалось що запис не створиться. "
+            f"Кількість рядків змінилась: було {feeds_count_before}, стало {feeds_count_after}"
+        )
+        print("Підтверджено: запис у таблиці feed не створено")
+    
+    def test_invalid_url_format_validation(self, page: Page, test_config: TestConfig):
+        """
+        Тест кейс: Невірний формат URL (не URL)
+        
+        Перевіряє що при додаванні фіду з невалідним URL (наприклад ftp://)
+        відображається помилка валідації та запис у feed не створюється.
+        
+        Кроки:
+        - Авторизуватися, обрати постачальника
+        - Товари → Імпорт новинок → XML
+        - Натиснути "Додати новий фід"
+        - Ввести невалідний рядок (ftp://test.com або not-a-url)
+        - Увімкнути чекбокс "Завантажити товари з xml"
+        - Натиснути "Зберегти"
+        
+        Очікуваний результат:
+        - Помилка: "Помилка валідації xml структури фіду помилка завантаження фіду: ftp protocol is not supported"
+        - Запис у feed не створюється
+        """
+        invalid_url = test_config.TEST_INVALID_URL_FEED
+        
+        # Крок 1: Авторизація в хаб
+        login_page = LoginPage(page)
+        login_page.navigate_to_login(f"{test_config.LOGIN_URL}?next=/supplier-content/xml")
+        login_page.login(
+            email=test_config.USER_EMAIL,
+            password=test_config.USER_PASSWORD
+        )
+        login_page.verify_successful_login()
+        
+        # Крок 2: Вибір постачальника
+        xml_feed_page = XMLFeedPage(page)
+        xml_feed_page.select_supplier(test_config.TEST_SUPPLIER_NAME)
+        
+        # Крок 3: Перехід в Товари - Імпорт новинок - XML
+        xml_feed_page.navigate_to_xml_feeds_via_menu()
+        
+        feeds_count_before = xml_feed_page.get_feeds_table_row_count()
+        
+        # Крок 4: Натиснути "Додати новий фід"
+        xml_feed_page.click_add_new_feed_button()
+        
+        # Крок 5: Ввести невалідний URL
+        xml_feed_page.fill_feed_url(invalid_url)
+        page.wait_for_timeout(500)
+        
+        # Крок 6: Увімкнути чекбокс "Завантажити товари з xml"
+        xml_feed_page.enable_upload_items_checkbox()
+        
+        # Крок 7: Натиснути "Зберегти"
+        xml_feed_page.click_save_button()
+        page.wait_for_timeout(3000)
+        
+        # Очікуваний результат 1: Помилка валідації
+        xml_feed_page.verify_validation_error_message("Помилка валідації xml структури фіду")
+        xml_feed_page.verify_validation_error_message("ftp protocol is not supported")
+        print("Підтверджено: відображається помилка валідації")
+        
+        # Очікуваний результат 2: Запис у feed не створюється
+        if test_config.DB_HOST and test_config.DB_NAME:
+            with DBHelper(
+                host=test_config.DB_HOST,
+                port=test_config.DB_PORT,
+                database=test_config.DB_NAME,
+                user=test_config.DB_USER,
+                password=test_config.DB_PASSWORD
+            ) as db:
+                feed_exists = db.feed_exists_by_origin_url(invalid_url)
+                assert not feed_exists, (
+                    f"Запис у таблиці feed по origin_url не повинен був створитися, "
+                    f"але він існує! URL: {invalid_url}"
+                )
+            print("Підтверджено: запис у таблиці feed не створено")
+        else:
+            xml_feed_page.goto(test_config.XML_FEEDS_URL)
+            xml_feed_page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(2000)
+            feeds_count_after = xml_feed_page.get_feeds_table_row_count()
+            assert feeds_count_after == feeds_count_before, (
+                f"Очікувалось що запис не створиться. "
+                f"Кількість рядків змінилась: було {feeds_count_before}, стало {feeds_count_after}"
+            )
+            print("Підтверджено: запис у таблиці feed не створено")
+    
+    def test_tc_xml_007_connection_timeout_1min(self, page: Page, test_config: TestConfig):
+        """
+        TC-XML-007: Таймаут при збереженні фіду (conn-timeout 1 хв)
+        
+        Валідація фіду при "Зберегти" використовує feed-download з лімітами:
+        - conn-timeout 1 хв — якщо сервер не відповідає протягом 1 хв → "connection timeout"
+        - socket-timeout 5 хв — якщо після з'єднання дані не надходять 5 хв → "Operation timed out"
+        
+        Тестуємо conn-timeout 1 хв. URL має відповідати довше 1 хвилини
+        (напр. https://httpbin.org/delay/65), щоб гарантовано отримати помилку таймауту.
+        
+        Кроки:
+        - Авторизуватися, обрати постачальника
+        - Товари → Імпорт новинок → XML
+        - Натиснути "Додати новий фід"
+        - Ввести URL сервісу, що довго відповідає (> 1 хв)
+        - Увімкнути чекбокс "Завантажити товари з xml"
+        - Натиснути "Зберегти"
+        
+        Очікуваний результат:
+        - Помилка "Помилка валідації xml структури фіду помилка завантаження фіду: Connect timed out"
+        - Запис у feed не створюється
+        """
+        timeout_url = test_config.TEST_TIMEOUT_FEED_URL
+        
+        # Крок 1: Авторизація в хаб
+        login_page = LoginPage(page)
+        login_page.navigate_to_login(f"{test_config.LOGIN_URL}?next=/supplier-content/xml")
+        login_page.login(
+            email=test_config.USER_EMAIL,
+            password=test_config.USER_PASSWORD
+        )
+        login_page.verify_successful_login()
+        
+        # Крок 2: Вибір постачальника
+        xml_feed_page = XMLFeedPage(page)
+        xml_feed_page.select_supplier(test_config.TEST_SUPPLIER_NAME)
+        
+        # Крок 3: Перехід в Товари - Імпорт новинок - XML
+        xml_feed_page.navigate_to_xml_feeds_via_menu()
+        
+        feeds_count_before = xml_feed_page.get_feeds_table_row_count()
+        
+        # Крок 4: Натиснути "Додати новий фід"
+        xml_feed_page.click_add_new_feed_button()
+        
+        # Крок 5: Ввести URL що відповідає довше 1 хв
+        xml_feed_page.fill_feed_url(timeout_url)
+        page.wait_for_timeout(500)
+        
+        # Крок 6: Увімкнути чекбокс "Завантажити товари з xml"
+        xml_feed_page.enable_upload_items_checkbox()
+        
+        # Крок 7: Натиснути "Зберегти"
+        xml_feed_page.click_save_button()
+        # Чекаємо на відповідь: conn-timeout 1 хв + буфер
+        page.wait_for_timeout(90000)
+        
+        # Очікуваний результат 1: Помилка "Connect timed out" (conn-timeout 1 хв)
+        xml_feed_page.verify_validation_error_message("Помилка валідації xml структури фіду")
+        xml_feed_page.verify_validation_error_message("Connect timed out")
+        print("Підтверджено: відображається помилка 'Connect timed out' (conn-timeout)")
+        
+        # Очікуваний результат 2: Запис у feed не створюється
+        if test_config.DB_HOST and test_config.DB_NAME:
+            with DBHelper(
+                host=test_config.DB_HOST,
+                port=test_config.DB_PORT,
+                database=test_config.DB_NAME,
+                user=test_config.DB_USER,
+                password=test_config.DB_PASSWORD
+            ) as db:
+                feed_exists = db.feed_exists_by_origin_url(timeout_url)
+                assert not feed_exists, (
+                    f"Запис у таблиці feed не повинен був створитися, але існує! URL: {timeout_url}"
+                )
+            print("Підтверджено: запис у таблиці feed не створено")
+        else:
+            xml_feed_page.goto(test_config.XML_FEEDS_URL)
+            xml_feed_page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(2000)
+            feeds_count_after = xml_feed_page.get_feeds_table_row_count()
+            assert feeds_count_after == feeds_count_before, (
+                f"Очікувалось що запис не створиться. "
+                f"Кількість рядків змінилась: було {feeds_count_before}, стало {feeds_count_after}"
+            )
+            print("Підтверджено: запис у таблиці feed не створено")
+    
     def test_limit_3_active_feeds(self, page: Page, test_config: TestConfig):
         """
         Тест кейс: Обмеження "3 активні фіди"

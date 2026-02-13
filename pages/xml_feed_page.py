@@ -103,6 +103,14 @@ class XMLFeedPage(BasePage):
                 continue
         return feed_ids
     
+    def get_feeds_table_row_count(self) -> int:
+        """
+        Отримати кількість рядків у таблиці фідів.
+        Потрібно бути на сторінці з таблицею фідів.
+        """
+        self.page.wait_for_selector(".ag-row", timeout=10000)
+        return self.page.locator(".ag-row").count()
+    
     def select_supplier(self, supplier_name: str):
         """
         Вибір постачальника зі списку
@@ -197,6 +205,17 @@ class XMLFeedPage(BasePage):
             url_input = self.page.locator("input[placeholder*='fmt']")
             url_input.click()
             url_input.fill(url)
+    
+    def clear_feed_url(self):
+        """Очистити поле URL XML-фіду (залишити порожнім)"""
+        try:
+            url_input = self.page.get_by_placeholder("https://127.0.0.1:8000/fmt.")
+            url_input.click()
+            url_input.fill("")
+        except:
+            url_input = self.page.locator("input[placeholder*='fmt']")
+            url_input.click()
+            url_input.fill("")
     
     def enable_upload_items_checkbox(self):
         """Увімкнути чекбокс 'Завантажити товари з xml'"""

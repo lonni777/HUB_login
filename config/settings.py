@@ -49,6 +49,13 @@ class TestConfig:
         "TEST_404_FEED_URL",
         "https://gist.github.com/lonni777/1eb5d08a1dfd4ad0fdf8666ab78ab5be111/raw"
     )
+    # Невалідний URL (не підтримуваний протокол, напр. ftp) — для тесту формату
+    TEST_INVALID_URL_FEED = os.getenv("TEST_INVALID_URL_FEED", "ftp://test.com")
+    # TC-XML-007: URL для тесту conn-timeout 1 хв при збереженні фіду.
+    # feed-download: conn-timeout 1 хв, socket-timeout 5 хв.
+    # Non-routable IP (TEST-NET) — з'єднання не встановлюється, гарантовано conn-timeout.
+    # httpbin.org/delay повертає JSON за ~10 сек → помилка валідації XML, не таймаут.
+    TEST_TIMEOUT_FEED_URL = os.getenv("TEST_TIMEOUT_FEED_URL", "http://192.0.2.1/xml")
     
     # Постачальник для тестування XML-фідів
     TEST_SUPPLIER_NAME = os.getenv("TEST_SUPPLIER_NAME", "Парфюмс")
