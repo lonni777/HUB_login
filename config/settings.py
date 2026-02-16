@@ -37,8 +37,8 @@ class TestConfig:
     XML_FEEDS_URL = os.getenv("TEST_XML_FEEDS_URL", f"{BASE_URL}/supplier-content/xml")
     XML_FEED_ADD_URL = os.getenv("TEST_XML_FEED_ADD_URL", f"{BASE_URL}/supplier-content/xml?feed_id=%20%20%20&tab=feed")
     
-    # Тестовий XML-фід URL (з Git Gist)
-    TEST_XML_FEED_URL = os.getenv("TEST_XML_FEED_URL", "https://gist.github.com/lonni777/1eb5d08a1dfd4ad0fdf8666ab78ab5be/raw")
+    # Тестовий XML-фід URL (з Git Gist) — валідний фід для автотестів
+    TEST_XML_FEED_URL = os.getenv("TEST_XML_FEED_URL", "https://gist.githubusercontent.com/lonni777/dc7d69b7226ce29d807d762bbb054598/raw")
     # URL з розширенням .xml але вмістом JSON (невалідна структура) — для негативного тесту
     TEST_INVALID_XML_FEED_URL = os.getenv(
         "TEST_INVALID_XML_FEED_URL",
@@ -51,6 +51,11 @@ class TestConfig:
     )
     # Невалідний URL (не підтримуваний протокол, напр. ftp) — для тесту формату
     TEST_INVALID_URL_FEED = os.getenv("TEST_INVALID_URL_FEED", "ftp://test.com")
+    # TC-XML-008: XML з некоректною структурою (неповний/зламаний XML)
+    TEST_INVALID_XML_STRUCTURE_URL = os.getenv(
+        "TEST_INVALID_XML_STRUCTURE_URL",
+        "https://gist.githubusercontent.com/lonni777/231bc3625b32b6d8ae95374f154a4e30/raw"
+    )
     # TC-XML-007: URL для тесту conn-timeout 1 хв при збереженні фіду.
     # feed-download: conn-timeout 1 хв, socket-timeout 5 хв.
     # Non-routable IP (TEST-NET) — з'єднання не встановлюється, гарантовано conn-timeout.

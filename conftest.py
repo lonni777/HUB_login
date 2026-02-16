@@ -206,6 +206,68 @@ def pytest_runtest_call(item):
         pass
 
 
+def _save_bug_report(item, rep, screenshot_path=None):
+    """
+    Зберігає шаблон баг-репорту для ручного створення в Jira.
+    Файл: reports/last_failure_bug_report.txt
+    """
+    reports_dir = Path("reports")
+    reports_dir.mkdir(exist_ok=True)
+    bug_report_path = reports_dir / "last_failure_bug_report.txt"
+    
+    test_name = item.nodeid
+    test_short = item.name.split("[")[0] if "[" in item.name else item.name
+    error_msg = str(rep.longrepr) if rep.longrepr else str(rep)
+    
+    # Кроки з docstring тесту (якщо є)
+    docstring = item.function.__doc__ or ""
+    steps = ""
+    if docstring:
+        lines = docstring.strip().split("\n")
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("-") or stripped.startswith("Крок"):
+                steps += stripped + "\n"
+    
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    html_reports = list(Path("reports").glob("report_*.html"))
+    latest_report = max(html_reports, key=lambda p: p.stat().st_mtime) if html_reports else None
+    
+    attachments = []
+    if screenshot_path:
+        attachments.append(f"Скріншот: {screenshot_path}")
+    if latest_report:
+        attachments.append(f"HTML звіт: {latest_report}")
+    
+    content = f"""=== БАГ-РЕПОРТ ДЛЯ JIRA (копіювати вручну) ===
+Згенеровано: {timestamp}
+
+--- Summary ---
+[Автотест] {test_short}: {error_msg[:80]}...
+
+--- Description ---
+**Тест:** {test_name}
+
+**Помилка:**
+{error_msg[:1500]}
+
+**Кроки для відтворення:**
+{steps or "(див. тест-кейс)"}
+
+**Очікуваний результат:** (з тест-кейсу)
+**Фактичний результат:** (див. помилку вище)
+
+**Середовище:** {platform.system()}, Python
+
+--- Attachments ---
+{chr(10).join(attachments) or "(немає)"}
+"""
+    
+    bug_report_path.write_text(content, encoding="utf-8")
+    print(f"\n>>> Bug report збережено: {bug_report_path}")
+    print(">>> Можна створити issue в Jira, скопіювавши вміст файлу.\n")
+
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """
@@ -252,7 +314,8 @@ def pytest_runtest_makereport(item, call):
                 "value": error_text
             })
     
-    # Зберігаємо скріншот та trace тільки якщо тест завершився з помилкою або failed
+    # Зберігаємо скріншот, bug report та trace тільки якщо тест завершився з помилкою
+    screenshot_path = None
     if rep.when == "call" and rep.failed:
         # Отримуємо page з тесту (якщо доступний)
         if "page" in item.fixturenames:
@@ -264,8 +327,8 @@ def pytest_runtest_makereport(item, call):
                 
                 # Генеруємо унікальне ім'я файлу
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                test_name = item.name.replace("::", "_").replace("[", "_").replace("]", "")
-                screenshot_path = screenshots_dir / f"{test_name}_{timestamp}.png"
+                test_name_safe = item.name.replace("::", "_").replace("[", "_").replace("]", "")
+                screenshot_path = screenshots_dir / f"{test_name_safe}_{timestamp}.png"
                 
                 try:
                     # Зберігаємо скріншот
@@ -276,9 +339,11 @@ def pytest_runtest_makereport(item, call):
                         "name": "Screenshot",
                         "value": str(screenshot_path)
                     })
-                except Exception as e:
-                    # Якщо не вдалося зробити скріншот, ігноруємо помилку
-                    pass
+                except Exception:
+                    screenshot_path = None
+        
+        # Зберігаємо bug report для ручного створення в Jira
+        _save_bug_report(item, rep, screenshot_path)
     
     # Додаємо всі додаткові елементи в звіт
     if extra_items:

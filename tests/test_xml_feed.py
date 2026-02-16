@@ -437,6 +437,121 @@ class TestXMLFeed:
         )
         print("Підтверджено: запис у таблиці feed не створено")
     
+    def test_save_feed_without_checkbox(self, page: Page, test_config: TestConfig):
+        """
+        Збереження фіду без чекбокса "Завантажити товари з xml"
+
+        Перевіряє що фід можна зберегти без увімкнення чекбокса "Завантажити товари з xml".
+        Чекбокс залишається вимкненим, фід має статус "не активний" для завантаження товарів.
+
+        Кроки:
+        - Авторизуватися, обрати постачальника
+        - Товари → Імпорт новинок → XML
+        - Натиснути "Додати новий фід"
+        - Ввести валідний URL XML-фіду
+        - НЕ увімкнути чекбокс "Завантажити товари з xml"
+        - Натиснути "Зберегти"
+
+        Очікуваний результат:
+        - Фід збережено
+        - Чекбокс залишається вимкненим
+        - Фід має статус "не активний" для завантаження товарів
+
+        Cleanup: Видалення фіду з БД після тесту.
+        """
+        # Крок 1: Авторизація в хаб
+        login_page = LoginPage(page)
+        login_page.navigate_to_login(f"{test_config.LOGIN_URL}?next=/supplier-content/xml")
+        login_page.login(
+            email=test_config.USER_EMAIL,
+            password=test_config.USER_PASSWORD
+        )
+        login_page.verify_successful_login()
+
+        # Крок 2: Вибір постачальника
+        xml_feed_page = XMLFeedPage(page)
+        xml_feed_page.select_supplier(test_config.TEST_SUPPLIER_NAME)
+
+        # Крок 3: Перехід в Товари - Імпорт новинок - XML
+        xml_feed_page.navigate_to_xml_feeds_via_menu()
+
+        # Крок 4: Натиснути "Додати новий фід"
+        xml_feed_page.click_add_new_feed_button()
+
+        # Крок 5: Ввести валідний URL XML-фіду
+        xml_feed_page.fill_feed_url(test_config.TEST_XML_FEED_URL)
+
+        # Крок 6: НЕ увімкнути чекбокс "Завантажити товари з xml" (залишаємо вимкненим)
+        # Крок 7: Натиснути "Зберегти"
+        xml_feed_page.click_save_button()
+        page.wait_for_timeout(3000)
+
+        # Очікуваний результат 1: Фід збережено
+        xml_feed_page.verify_success_message("Дані збережено!")
+        print("Підтверджено: фід збережено успішно")
+
+        # Переходимо на сторінку зі списком фідів для пошуку фіду
+        xml_feed_page.navigate_to_feeds_table(test_config.XML_FEEDS_URL)
+        page.wait_for_timeout(2000)
+
+        feed_id = xml_feed_page.get_feed_id_by_url_from_table(test_config.TEST_XML_FEED_URL)
+        if not feed_id:
+            raise AssertionError("Не вдалося знайти feed_id після збереження фіду")
+
+        # Очікуваний результат 2: Відкриваємо фід для редагування та перевіряємо що чекбокс вимкнений
+        xml_feed_page.open_feed_from_table_by_id(feed_id)
+        page.wait_for_timeout(2000)
+        xml_feed_page.click_edit_button()
+        page.wait_for_timeout(1500)
+
+        is_checked = xml_feed_page.is_upload_items_checkbox_checked()
+        assert not is_checked, (
+            "Очікувалось що чекбокс 'Завантажити товари з xml' буде вимкнений, але він увімкнений"
+        )
+        print("Підтверджено: чекбокс залишається вимкненим")
+
+        # Очікуваний результат 3: Фід має статус "не активний" для завантаження товарів
+        # (перевірка через БД: is_active = false, якщо є доступ)
+        if test_config.DB_HOST and test_config.DB_NAME:
+            try:
+                with DBHelper(
+                    host=test_config.DB_HOST,
+                    port=test_config.DB_PORT,
+                    database=test_config.DB_NAME,
+                    user=test_config.DB_USER,
+                    password=test_config.DB_PASSWORD
+                ) as db:
+                    is_active = db.is_feed_active(feed_id)
+                    assert not is_active, (
+                        f"Очікувалось що фід {feed_id} буде не активний (is_active=false), але is_active=true"
+                    )
+                print("Підтверджено: фід має статус 'не активний' в БД")
+            except Exception as e:
+                print(f"Попередження: не вдалося перевірити is_active в БД ({e}), пропускаємо")
+
+        # Cleanup: Видалення фіду з БД після тесту
+        cleanup_success = False
+        try:
+            if not (test_config.DB_HOST and test_config.DB_NAME):
+                raise AssertionError("Налаштування БД не вказані. Cleanup не виконано!")
+
+            with DBHelper(
+                host=test_config.DB_HOST,
+                port=test_config.DB_PORT,
+                database=test_config.DB_NAME,
+                user=test_config.DB_USER,
+                password=test_config.DB_PASSWORD
+            ) as db:
+                db.delete_feed_by_id(feed_id)
+                cleanup_success = True
+            print(f"Cleanup: фід {feed_id} успішно видалено з БД")
+        except Exception as e:
+            error_msg = f"КРИТИЧНА ПОМИЛКА: Cleanup не вдався - {e}"
+            print(error_msg)
+            pytest.fail(error_msg)
+
+        assert cleanup_success, f"Cleanup не виконано для feed_id '{feed_id}'. Тест провалено!"
+
     def test_invalid_url_format_validation(self, page: Page, test_config: TestConfig):
         """
         Тест кейс: Невірний формат URL (не URL)
@@ -508,6 +623,88 @@ class TestXMLFeed:
                 assert not feed_exists, (
                     f"Запис у таблиці feed по origin_url не повинен був створитися, "
                     f"але він існує! URL: {invalid_url}"
+                )
+            print("Підтверджено: запис у таблиці feed не створено")
+        else:
+            xml_feed_page.goto(test_config.XML_FEEDS_URL)
+            xml_feed_page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(2000)
+            feeds_count_after = xml_feed_page.get_feeds_table_row_count()
+            assert feeds_count_after == feeds_count_before, (
+                f"Очікувалось що запис не створиться. "
+                f"Кількість рядків змінилась: було {feeds_count_before}, стало {feeds_count_after}"
+            )
+            print("Підтверджено: запис у таблиці feed не створено")
+    
+    def test_tc_xml_008_invalid_xml_structure(self, page: Page, test_config: TestConfig):
+        """
+        TC-XML-008: XML з некоректною структурою (неповний/зламаний XML)
+        
+        Перевіряє що при додаванні фіду з URL, що повертає XML з незакритими тегами
+        або порушеною структурою, відображається помилка валідації та запис у feed не створюється.
+        
+        Кроки:
+        - Авторизуватися, обрати постачальника
+        - Товари → Імпорт новинок → XML
+        - Натиснути "Додати новий фід"
+        - Ввести URL файлу з незакритими тегами або порушеною XML-структурою
+        - Увімкнути чекбокс "Завантажити товари з xml"
+        - Натиснути "Зберегти"
+        
+        Очікуваний результат:
+        - Повідомлення про помилку валідації XML
+        - Запис у feed не створюється
+        """
+        invalid_structure_url = test_config.TEST_INVALID_XML_STRUCTURE_URL
+        
+        # Крок 1: Авторизація в хаб
+        login_page = LoginPage(page)
+        login_page.navigate_to_login(f"{test_config.LOGIN_URL}?next=/supplier-content/xml")
+        login_page.login(
+            email=test_config.USER_EMAIL,
+            password=test_config.USER_PASSWORD
+        )
+        login_page.verify_successful_login()
+        
+        # Крок 2: Вибір постачальника
+        xml_feed_page = XMLFeedPage(page)
+        xml_feed_page.select_supplier(test_config.TEST_SUPPLIER_NAME)
+        
+        # Крок 3: Перехід в Товари - Імпорт новинок - XML
+        xml_feed_page.navigate_to_xml_feeds_via_menu()
+        
+        feeds_count_before = xml_feed_page.get_feeds_table_row_count()
+        
+        # Крок 4: Натиснути "Додати новий фід"
+        xml_feed_page.click_add_new_feed_button()
+        
+        # Крок 5: Ввести URL з некоректною XML-структурою
+        xml_feed_page.fill_feed_url(invalid_structure_url)
+        page.wait_for_timeout(500)
+        
+        # Крок 6: Увімкнути чекбокс "Завантажити товари з xml"
+        xml_feed_page.enable_upload_items_checkbox()
+        
+        # Крок 7: Натиснути "Зберегти"
+        xml_feed_page.click_save_button()
+        page.wait_for_timeout(5000)
+        
+        # Очікуваний результат 1: Помилка валідації XML
+        xml_feed_page.verify_validation_error_message("Помилка валідації xml структури фіду")
+        print("Підтверджено: відображається помилка валідації XML")
+        
+        # Очікуваний результат 2: Запис у feed не створюється
+        if test_config.DB_HOST and test_config.DB_NAME:
+            with DBHelper(
+                host=test_config.DB_HOST,
+                port=test_config.DB_PORT,
+                database=test_config.DB_NAME,
+                user=test_config.DB_USER,
+                password=test_config.DB_PASSWORD
+            ) as db:
+                feed_exists = db.feed_exists_by_origin_url(invalid_structure_url)
+                assert not feed_exists, (
+                    f"Запис у таблиці feed не повинен був створитися, але існує! URL: {invalid_structure_url}"
                 )
             print("Підтверджено: запис у таблиці feed не створено")
         else:

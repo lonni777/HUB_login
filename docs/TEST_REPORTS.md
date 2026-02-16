@@ -32,7 +32,17 @@ Get-ChildItem reports/*.html | Sort-Object LastWriteTime -Descending | Select-Ob
 ls -t reports/*.html | head -1 | xargs open
 ```
 
-### 2. Скріншоти при помилках
+### 2. Bug report для Jira (при падінні тесту)
+**Розташування:** `reports/last_failure_bug_report.txt`
+
+**Що містить:**
+- Summary для Jira issue
+- Опис помилки та кроки відтворення
+- Шляхи до скріншота та HTML звіту
+
+**Використання:** при падінні тесту файл оновлюється автоматично. Скопіюйте вміст у Jira для створення баг-репорту.
+
+### 3. Скріншоти при помилках
 **Розташування:** `test-results/screenshots/`
 
 **Що містить:**

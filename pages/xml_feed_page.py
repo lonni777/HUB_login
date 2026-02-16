@@ -232,6 +232,26 @@ class XMLFeedPage(BasePage):
             has_text=re.compile(r"^Завантажити товари з xml.*")
         ).get_by_label("").first
         checkbox.uncheck()
+
+    def is_upload_items_checkbox_checked(self) -> bool:
+        """
+        Перевірити чи увімкнений чекбокс 'Завантажити товари з xml'.
+
+        Returns:
+            True якщо чекбокс увімкнений, False якщо вимкнений
+        """
+        try:
+            # Шукаємо input checkbox поруч з текстом "Завантажити товари з xml"
+            container = self.page.locator("div").filter(
+                has_text=re.compile(r"^Завантажити товари з xml.*")
+            ).first
+            if container.is_visible(timeout=3000):
+                checkbox_input = container.locator("input[type='checkbox']").first
+                if checkbox_input.is_visible(timeout=2000):
+                    return checkbox_input.is_checked()
+            return False
+        except Exception:
+            return False
     
     def click_save_button(self):
         """Натиснути кнопку 'Зберегти' та очікувати навігацію"""

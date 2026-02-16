@@ -1,5 +1,18 @@
 # Тести XML-фідів
 
+## Валідний фід (додавання, нормалізація, Excel мапінг)
+
+**URL:** https://gist.github.com/lonni777/dc7d69b7226ce29d807d762bbb054598
+
+Використовується в тестах:
+- `test_validate_url_save_valid_url_without_spaces` — додавання валідного фіду
+- `test_validate_url_save_normalized_url_with_spaces` — нормалізація URL з пробілами
+- `test_excel_mapping` — скачування/завантаження Excel мапінгу
+
+Конфіг: `TEST_XML_FEED_URL`
+
+---
+
 ## TC-XML-007: Таймаут при збереженні фіду
 
 ### Ліміти feed-download (валідація при "Зберегти")

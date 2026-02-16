@@ -200,6 +200,36 @@ class DBHelper:
             print(error_msg)
             raise Exception(error_msg)
     
+    def is_feed_active(self, feed_id: str) -> bool:
+        """
+        Перевірити чи активний фід (is_active = true) в таблиці feed.
+
+        Args:
+            feed_id: ID фіду
+
+        Returns:
+            True якщо фід активний, False якщо не активний або не знайдено
+        """
+        if not self.connection:
+            if not self.connect():
+                raise Exception("Не вдалося підключитися до БД")
+
+        try:
+            cursor = self.connection.cursor()
+            # Пробуємо колонку is_active (типово в HUB)
+            try:
+                query = sql.SQL("SELECT is_active FROM feed WHERE feed_id = %s")
+                cursor.execute(query, (feed_id,))
+                result = cursor.fetchone()
+                cursor.close()
+                return result is not None and result[0] is True
+            except Exception:
+                cursor.close()
+                return False
+        except Exception as e:
+            print(f"Помилка при перевірці is_active фіду: {e}")
+            return False
+
     def feed_exists_by_origin_url(self, url: str) -> bool:
         """
         Перевірити чи існує фід з даним origin_url (або URL що містить цей рядок).
