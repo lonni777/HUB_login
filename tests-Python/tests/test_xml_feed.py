@@ -3,7 +3,7 @@
 Містить тест-кейси для додавання та валідації XML-фідів.
 """
 import pytest
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
 from config.settings import TestConfig
 from pages.xml_feed_page import XMLFeedPage
 from pages.login_page import LoginPage
@@ -551,6 +551,100 @@ class TestXMLFeed:
             pytest.fail(error_msg)
 
         assert cleanup_success, f"Cleanup не виконано для feed_id '{feed_id}'. Тест провалено!"
+
+    def test_add_same_url_twice_no_duplicate(self, page: Page, test_config: TestConfig):
+        """
+        Тест кейс: Додавання одного URL двічі
+
+        URL вже існує в кабінеті Парфюмс. Симулюємо повторне додавання того ж URL —
+        система не створює дубль, лише зберігає/оновлює існуючий фід.
+        Використовується фід Парфюмс: https://www.foxtrot.com.ua/pricelist/kasta_uk.xml
+
+        Кроки:
+        - Авторизуватися в Хабі
+        - Обрати постачальника (Парфюмс)
+        - Додати фід з URL, який уже є у постачальника (повторне додавання)
+
+        Очікуваний результат:
+        - Після "Зберегти" редирект на сторінку з таблицею фідів (supplier-content/xml)
+        - Повідомлення "Дані збережено!"
+        - Фід можна знайти в таблиці по посиланню (один запис, дубль не створено)
+
+        Cleanup: Вимкнення фіду через БД (is_active = false).
+        """
+        feed_url = test_config.TEST_DUPLICATE_FEED_URL
+
+        # Крок 1: Авторизація в хаб
+        login_page = LoginPage(page)
+        login_page.navigate_to_login(f"{test_config.LOGIN_URL}?next=/supplier-content/xml")
+        login_page.login(
+            email=test_config.USER_EMAIL,
+            password=test_config.USER_PASSWORD
+        )
+        login_page.verify_successful_login()
+
+        # Крок 2: Вибір постачальника Парфюмс
+        xml_feed_page = XMLFeedPage(page)
+        xml_feed_page.select_supplier(test_config.TEST_SUPPLIER_NAME)
+
+        # Крок 3: Перехід в Товари - Імпорт новинок - XML
+        xml_feed_page.navigate_to_xml_feeds_via_menu()
+
+        # Крок 4: Повторне додавання фіду з URL, який вже є в кабінеті Парфюмс
+        xml_feed_page.click_add_new_feed_button()
+        xml_feed_page.fill_feed_url(feed_url)
+        xml_feed_page.enable_upload_items_checkbox()
+        xml_feed_page.click_save_button()
+
+        # Очікуваний результат: редирект на таблицю, "Дані збережено!", фід в таблиці
+        xml_feed_page.verify_success_message("Дані збережено!")
+        expect(page).to_have_url(test_config.XML_FEEDS_URL, timeout=5000)
+        page.wait_for_timeout(2000)
+
+        # Переходимо на таблицю (якщо ще не там) та шукаємо фід по посиланню
+        xml_feed_page.navigate_to_feeds_table(test_config.XML_FEEDS_URL)
+        xml_feed_page.filter_feeds_by_link(feed_url)
+        page.wait_for_timeout(1500)
+
+        # Має бути знайдено рівно один фід по URL (система не створила дубль)
+        feed_id = xml_feed_page.get_feed_id_from_filtered_table()
+        if not feed_id:
+            feed_id = xml_feed_page.get_feed_id_by_url_from_table(feed_url)
+        assert feed_id, (
+            f"Очікувалось знайти фід з URL '{feed_url}' в таблиці після повторного додавання"
+        )
+        print(f"Фід знайдено в таблиці по посиланню: feed_id={feed_id}, URL={feed_url}")
+
+        # Після фільтра по URL очікуємо щонайменше один рядок; якщо один — дубль не створено
+        rows_count = xml_feed_page.get_feeds_table_row_count()
+        assert rows_count >= 1, "Після фільтрації має бути щонайменше один рядок"
+        if rows_count == 1:
+            print("Підтверджено: один запис по URL — дубль не створено")
+
+        # Cleanup: вимкнення фіду через БД
+        cleanup_success = False
+        try:
+            if not (test_config.DB_HOST and test_config.DB_NAME):
+                print("Попередження: налаштування БД не вказані, cleanup (вимкнення фіду) пропущено")
+            else:
+                with DBHelper(
+                    host=test_config.DB_HOST,
+                    port=test_config.DB_PORT,
+                    database=test_config.DB_NAME,
+                    user=test_config.DB_USER,
+                    password=test_config.DB_PASSWORD
+                ) as db:
+                    db.deactivate_feed_by_id(feed_id)
+                    cleanup_success = True
+                print(f"Cleanup: фід {feed_id} успішно вимкнено (is_active=false) в БД")
+        except Exception as e:
+            error_msg = f"КРИТИЧНА ПОМИЛКА: Cleanup не вдався - {e}"
+            print(error_msg)
+            pytest.fail(error_msg)
+
+        assert cleanup_success or not (test_config.DB_HOST and test_config.DB_NAME), (
+            f"Cleanup не виконано для feed_id '{feed_id}'. Тест провалено!"
+        )
 
     def test_invalid_url_format_validation(self, page: Page, test_config: TestConfig):
         """

@@ -9,12 +9,19 @@ from config.settings import TestConfig
 def pytest_configure(config):
     """
     Налаштування pytest перед запуском тестів.
-    Генерує унікальне ім'я звіту з timestamp для збереження історії запусків.
+    Видаляє старі HTML-репорти та створює новий звіт з timestamp.
     """
-    # Створюємо папку reports якщо її немає
-    reports_dir = Path("reports")
-    reports_dir.mkdir(exist_ok=True)
-    
+    # Репорти зберігаємо в корені репозиторію (HUB_login/reports)
+    reports_dir = Path(__file__).resolve().parent.parent / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    # Видаляємо старі HTML-репорти (report_*.html), щоб не накопичувати їх
+    for old_report in reports_dir.glob("report_*.html"):
+        try:
+            old_report.unlink()
+        except OSError:
+            pass
+
     # Генеруємо timestamp для унікального імені звіту
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_path = reports_dir / f"report_{timestamp}.html"

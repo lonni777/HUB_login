@@ -6,10 +6,10 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Шлях до кореня проекту
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Шлях до кореня репозиторію (HUB_login), щоб використовувати спільний .env
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Завантаження змінних з .env файлу (якщо він існує)
+# Завантаження змінних з .env файлу в корені репозиторію (якщо він існує)
 env_path = BASE_DIR / ".env"
 if env_path.exists():
     load_dotenv(env_path)
@@ -64,6 +64,11 @@ class TestConfig:
     
     # Постачальник для тестування XML-фідів
     TEST_SUPPLIER_NAME = os.getenv("TEST_SUPPLIER_NAME", "Парфюмс")
+    # URL для тесту "Додавання одного URL двічі" (Парфюмс, фід не створює дубль, лише оновлює)
+    TEST_DUPLICATE_FEED_URL = os.getenv(
+        "TEST_DUPLICATE_FEED_URL",
+        "https://www.foxtrot.com.ua/pricelist/kasta_uk.xml"
+    )
     
     # Існуючий feed_id для тестування Excel мапінгу (для оптимізації - використовуємо замість створення нового)
     # Використовується фід постачальника Парфюмс з ID R3DV

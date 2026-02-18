@@ -1,0 +1,24 @@
+{
+  "name": "hub-login-tests-ts",
+  "version": "1.0.0",
+  "description": "E2E тести Hub (Playwright + TypeScript)",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "allure:generate": "allure generate ../reports/allure-results -o ../reports/allure-report --clean",
+    "allure:serve": "allure serve ../reports/allure-results",
+    "allure:open": "npx --yes serve ../reports/allure-report -l 9753"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.16.0",
+    "allure-playwright": "^3.4.5",
+    "dotenv": "^16.4.5",
+    "pg": "^8.18.0",
+    "typescript": "^5.6.0",
+    "xlsx": "^0.18.5"
+  }
+}
