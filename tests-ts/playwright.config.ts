@@ -7,11 +7,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const baseURL = process.env.TEST_BASE_URL || process.env.TEST_LOGIN_URL?.replace(/\/user\/login\/?$/, '') || 'https://hubtest.kasta.ua';
 
-// Репорти як у Python: папка report_YYYYMMDD_HHMMSS (історія прогонів), last_failure_bug_report.txt при падінні
-const now = new Date();
-const YYYYMMDD = now.toISOString().slice(0, 10).replace(/-/g, '');
-const HHMMSS = now.toTimeString().slice(0, 8).replace(/:/g, '');
-const reportFolder = `report_${YYYYMMDD}_${HHMMSS}`;
+// Єдиний репорт: Allure (див. docs/REPORTS_AND_ARTIFACTS.md)
 const reportsDir = path.join(__dirname, '..', 'reports');
 
 export default defineConfig({
@@ -21,9 +17,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: 1,
   reporter: [
-    ['html', { outputFolder: path.join(reportsDir, reportFolder), open: 'never' }],
     ['list'],
-    ['./reporters/bug-report-reporter.ts', { reportsDir, currentReportFolder: reportFolder }],
     [
       'allure-playwright',
       {

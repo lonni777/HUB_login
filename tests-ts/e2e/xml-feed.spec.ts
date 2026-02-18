@@ -1,12 +1,11 @@
 /**
  * Тести XML-фідів (переписані з tests-Python/tests/test_xml_feed.py).
- * Cleanup: при налаштованих TEST_DB_* фід видаляється з БД після тесту (utils/db-helper).
+ * Cleanup: фікстура feedCleanup — реєстрація feedId на delete/deactivate; виконується в teardown навіть при fail.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/feed-cleanup';
 import { testConfig } from '../fixtures/env';
 import { LoginPage } from '../pages/LoginPage';
 import { XmlFeedPage } from '../pages/XmlFeedPage';
-import { deleteFeedById, deactivateFeedById } from '../utils/db-helper';
 
 test.describe('XML-фіди: додавання та валідація', () => {
   test.beforeEach(async ({ page }) => {
@@ -18,7 +17,7 @@ test.describe('XML-фіди: додавання та валідація', () => 
     await loginPage.verifySuccessfulLogin();
   });
 
-  test('збереження валідного URL без пробілів', async ({ page }) => {
+  test('збереження валідного URL без пробілів', async ({ page, feedCleanup }) => {
     test.setTimeout(90000);
     const { testSupplierName, xmlFeedsUrl, testXmlFeedUrl } = testConfig;
     const xmlFeedPage = new XmlFeedPage(page);
@@ -35,12 +34,10 @@ test.describe('XML-фіди: додавання та валідація', () => 
       await xmlFeedPage.filterFeedsByLink(testXmlFeedUrl);
       feedId = await xmlFeedPage.getFeedIdFromFilteredTable();
     }
-    if (feedId && testConfig.dbHost && testConfig.dbName) {
-      await deleteFeedById(feedId);
-    }
+    if (feedId) feedCleanup.registerDelete(feedId);
   });
 
-  test('збереження нормалізованого URL (пробіли до/після)', async ({ page }) => {
+  test('збереження нормалізованого URL (пробіли до/після)', async ({ page, feedCleanup }) => {
     test.setTimeout(90000);
     const { testSupplierName, testXmlFeedUrl, xmlFeedsUrl } = testConfig;
     const originalUrl = testXmlFeedUrl.trim();
@@ -65,9 +62,7 @@ test.describe('XML-фіди: додавання та валідація', () => 
     let feedId = await xmlFeedPage.getFeedIdFromFilteredTable();
     if (!feedId) feedId = await xmlFeedPage.getFeedIdByUrlFromTable(originalUrl);
     expect(feedId, 'Має бути знайдено feed_id після збереження').toBeTruthy();
-    if (feedId && testConfig.dbHost && testConfig.dbName) {
-      await deleteFeedById(feedId);
-    }
+    if (feedId) feedCleanup.registerDelete(feedId);
   });
 
   test('невалідна структура (JSON замість XML) — помилка валідації', async ({ page }) => {
@@ -134,7 +129,7 @@ test.describe('XML-фіди: додавання та валідація', () => 
     expect(countAfter).toBe(countBefore);
   });
 
-  test('збереження фіду без чекбокса "Завантажити товари з xml"', async ({ page }) => {
+  test('збереження фіду без чекбокса "Завантажити товари з xml"', async ({ page, feedCleanup }) => {
     const { testSupplierName, xmlFeedsUrl, testXmlFeedUrl } = testConfig;
     const xmlFeedPage = new XmlFeedPage(page);
     await xmlFeedPage.selectSupplier(testSupplierName);
@@ -149,12 +144,10 @@ test.describe('XML-фіди: додавання та валідація', () => 
     if (!feedId) feedId = await xmlFeedPage.getFeedIdByUrlFromTable(testXmlFeedUrl);
     const connected = await xmlFeedPage.getConnectedStatusFromFilteredRow();
     expect(connected, 'Для фіду без чекбокса "Завантажити товари з xml" очікується Підключено? = Ні').toBe('Ні');
-    if (feedId && testConfig.dbHost && testConfig.dbName) {
-      await deleteFeedById(feedId);
-    }
+    if (feedId) feedCleanup.registerDelete(feedId);
   });
 
-  test('додавання одного URL двічі — без дубля', async ({ page }) => {
+  test('додавання одного URL двічі — без дубля', async ({ page, feedCleanup }) => {
     const { testSupplierName, testDuplicateFeedUrl, xmlFeedsUrl } = testConfig;
     const xmlFeedPage = new XmlFeedPage(page);
     await xmlFeedPage.selectSupplier(testSupplierName);
@@ -172,9 +165,7 @@ test.describe('XML-фіди: додавання та валідація', () => 
     expect(feedId).toBeTruthy();
     const rowsCount = await xmlFeedPage.getFeedsTableRowCount();
     expect(rowsCount).toBeGreaterThanOrEqual(1);
-    if (feedId && testConfig.dbHost && testConfig.dbName) {
-      await deactivateFeedById(feedId);
-    }
+    if (feedId) feedCleanup.registerDeactivate(feedId);
   });
 
   test('невірний формат URL (ftp) — помилка валідації', async ({ page }) => {
@@ -243,7 +234,7 @@ test.describe('XML-фіди: додавання та валідація', () => 
     expect(stillOnEdit && (hasErrorOrTimeout || bodyText.length > 0)).toBe(true);
   });
 
-  test('обмеження 3 активні фіди', async ({ page }) => {
+  test('обмеження 3 активні фіди', async ({ page, feedCleanup }) => {
     test.setTimeout(120000);
     const { testSupplierName, xmlFeedsUrl } = testConfig;
     const xmlFeedPage = new XmlFeedPage(page);
@@ -279,10 +270,8 @@ test.describe('XML-фіди: додавання та валідація', () => 
       }
     }
 
-    if (testConfig.dbHost && testConfig.dbName) {
-      for (const feedId of enabledInThisTest) {
-        await deactivateFeedById(feedId);
-      }
+    for (const feedId of enabledInThisTest) {
+      feedCleanup.registerDeactivate(feedId);
     }
   });
 });

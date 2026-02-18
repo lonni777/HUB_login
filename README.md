@@ -91,5 +91,7 @@ HUB_login/
 
 ## Звіти
 
-- **Python (pytest):** `reports/report_YYYYMMDD_HHMMSS.html` — генерується при запуску з `tests-Python`.
-- **TypeScript (Playwright):** `reports/playwright/` — HTML-звіт після запуску з `tests-ts`; перегляд: `cd tests-ts && npm run report`.
+- **TypeScript (основні):** Allure Report. Після прогону: `cd tests-ts && npm run allure:generate && npm run allure:open` → http://localhost:9753/index.html. Детально: [docs/TEST_REPORTS.md](docs/TEST_REPORTS.md).
+- **Python (legacy):** при запуску з `tests-Python` генерується `reports/report_YYYYMMDD_HHMMSS.html`.
+
+Вся документація (POM, чеклист, секрети, репорти): [docs/](docs/).

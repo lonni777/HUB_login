@@ -4,41 +4,33 @@ E2E-тести на **TypeScript** (Playwright). Тут пишуться та з
 
 ## Встановлення
 
-З каталогу репозиторію:
-
 ```bash
 cd tests-ts
 npm install
 npx playwright install
 ```
 
-У корені репозиторію має бути файл **`.env`** (або скопіюйте з `.env.example`) з змінними для тестів: `TEST_USER_EMAIL`, `TEST_USER_PASSWORD`, `TEST_BASE_URL` / `TEST_LOGIN_URL` тощо. Конфіг Playwright підвантажує `.env` з кореня (`HUB_login/.env`).
+У **корені** репозиторію має бути файл **`.env`** (скопіюйте з `.env.example`): `TEST_USER_EMAIL`, `TEST_USER_PASSWORD`, `TEST_BASE_URL` / `TEST_LOGIN_URL` тощо. Playwright підвантажує `.env` з кореня.
 
 ## Запуск
 
 ```bash
-# З каталогу tests-ts
 npm run test
-
-# З відкритим браузером
 npm run test:headed
-
-# UI mode
 npm run test:ui
-
-# Один файл
 npx playwright test e2e/login.spec.ts
-
-# Один тест
 npx playwright test e2e/login.spec.ts -g "успішний логін"
 ```
 
-## Звіти
+## Звіти (Allure)
 
-- **Playwright HTML:** папки `../reports/report_YYYYMMDD_HHMMSS/` (з timestamp). Відкрити: `npm run report` або вручну `index.html` з останньої папки.
-- **Allure:** після прогону результати в `../reports/allure-results/`. Щоб згенерувати HTML-звіт, потрібен [Allure CLI](https://allurereport.org/docs/v2/install-for-nodejs/) (Java 8+), далі з папки `tests-ts`:
-  ```bash
-  npm run allure:generate   # → ../reports/allure-report/
-  npm run allure:serve      # згенерувати і відкрити в браузері
-  ```
-- **Bug report при падінні:** `../reports/last_failure_bug_report.txt` (формат для Jira).
+- Результати пишуться в **`../reports/allure-results/`**.
+- Згенерувати HTML-звіт: **`npm run allure:generate`** → `../reports/allure-report/`.
+- Відкрити: **`npm run allure:open`** → http://localhost:9753/index.html (перегляд тільки через сервер).
+- Історія (останні 3 прогони на сьют): **`npm run allure:rotate -- login`** (або `xml-feed`, `excel-mapping`).
+
+Детально: [../docs/REPORTS_AND_ARTIFACTS.md](../docs/REPORTS_AND_ARTIFACTS.md), [../docs/TEST_REPORTS.md](../docs/TEST_REPORTS.md).
+
+## Документація
+
+Повний перелік документів (POM, чеклист, секрети, структура проєкту): [../docs/README.md](../docs/README.md).

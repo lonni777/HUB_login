@@ -1,176 +1,268 @@
-# Page Object Model (POM) - Документація
+# Page Object Model (POM) — TypeScript
 
-## Що таке Page Object Model?
+Проєкт e2e-тестів (tests-ts) побудований за патерном **Page Object Model**: локатори винесені окремо, логіка сторінок — у класи Page Objects, тести використовують лише ці об’єкти.
 
-Page Object Model (POM) - це патерн проектування для автоматизації тестування, який інкапсулює веб-елементи та методи роботи з ними в окремі класи (Page Objects).
+---
 
-## Структура проекту
+## Що таке POM?
 
-### 1. Локатори (`locators/`)
+Page Object Model — патерн, при якому:
 
-Локатори зберігаються окремо для легкого оновлення:
+- **Елементи сторінки** (селектори) зберігаються в окремих модулях (локатори).
+- **Дії та перевірки** інкапсульовані в класи (Page Objects), які отримують `page: Page` і працюють через Playwright API.
+- **Тести** створюють потрібні Page Objects і викликають їхні методи, без прямого використання селекторів у spec-файлах.
 
-```python
-# locators/login_locators.py
-class LoginLocators:
-    EMAIL_INPUT = "#email"
-    PASSWORD_INPUT = "#password"
-    LOGIN_BUTTON = "#root-content > div:nth-child(2) > form > button"
+Переваги: один раз змінив локатор — оновили всі тести; тести короткі та читабельні; легко додавати нові сторінки.
+
+---
+
+## Структура tests-ts
+
+```
+tests-ts/
+├── locators/           # Локатори (селектори)
+│   ├── login.locators.ts
+│   └── xml-feed.locators.ts
+├── pages/              # Page Objects
+│   ├── BasePage.ts
+│   ├── LoginPage.ts
+│   └── XmlFeedPage.ts
+├── fixtures/           # Конфіг, фікстури (env, cleanup)
+│   ├── env.ts
+│   └── feed-cleanup.ts
+├── e2e/                # Тести (specs)
+│   ├── login.spec.ts
+│   ├── xml-feed.spec.ts
+│   └── excel-mapping.spec.ts
+├── utils/
+│   └── db-helper.ts
+└── playwright.config.ts
+```
+
+---
+
+## 1. Локатори (`locators/`)
+
+Локатори — це об’єкти з селекторами (рядки або Playwright-ролі). Один файл на логічну сторінку/область.
+
+**Приклад:** `locators/login.locators.ts`
+
+```typescript
+export const loginLocators = {
+  emailInput: '#email',
+  passwordInput: '#password',
+  loginButton: "role=button[name='Увійти']",
+  errorAlert: 'form .ant-alert.ant-alert-error',
+  fieldValidationError: 'form .ant-form-item-explain-error',
+  fieldValidationExplain: 'form .ant-form-item-explain',
+  fieldValidationAny: '[class*="ant-form-item-explain"]',
+} as const;
 ```
 
 **Переваги:**
-- Всі локатори в одному місці
-- Легко знайти та оновити
-- Зміна локатора оновлює всі тести одразу
 
-### 2. Page Objects (`pages/`)
+- Всі селектори в одному місці.
+- Зміна локатора оновлює всі тести та Page Objects, що його використовують.
 
-Page Objects інкапсулюють логіку роботи зі сторінками:
+---
 
-```python
-# pages/login_page.py
-class LoginPage(BasePage):
-    def login(self, email: str, password: str):
-        self.fill_email(email)
-        self.fill_password(password)
-        self.click_login_button()
+## 2. Page Objects (`pages/`)
+
+### BasePage
+
+Базовий клас з загальними методами: перехід за URL, поточний URL, очікування стану завантаження.
+
+```typescript
+// pages/BasePage.ts
+import { Page } from '@playwright/test';
+
+export class BasePage {
+  constructor(protected page: Page) {}
+
+  async goto(url: string): Promise<void> {
+    await this.page.goto(url);
+  }
+
+  getUrl(): string {
+    return this.page.url();
+  }
+
+  async waitForLoadState(state: 'load' | 'domcontentloaded' | 'networkidle' = 'networkidle'): Promise<void> {
+    await this.page.waitForLoadState(state);
+  }
+}
+```
+
+### Сторінковий Page Object
+
+Клас наслідує `BasePage`, імпортує локатори і інкапсулює дії та перевірки.
+
+```typescript
+// pages/LoginPage.ts
+import { BasePage } from './BasePage';
+import { loginLocators } from '../locators/login.locators';
+
+export class LoginPage extends BasePage {
+  async navigateToLogin(url: string): Promise<void> {
+    await this.goto(url);
+  }
+
+  async fillEmail(email: string): Promise<void> {
+    await this.page.locator(loginLocators.emailInput).fill(email);
+  }
+
+  async fillPassword(password: string): Promise<void> {
+    await this.page.locator(loginLocators.passwordInput).fill(password);
+  }
+
+  async clickLoginButton(): Promise<void> {
+    await this.page.locator(loginLocators.loginButton).click();
+  }
+
+  async login(email: string, password: string): Promise<void> {
+    await this.fillEmail(email);
+    await this.fillPassword(password);
+    await this.page.locator(loginLocators.loginButton).click();
+    await this.page.waitForLoadState('networkidle', { timeout: 15000 });
+  }
+
+  async verifySuccessfulLogin(expectedUrl?: string): Promise<void> {
+    if (expectedUrl) {
+      await expect(this.page).toHaveURL(expectedUrl, { timeout: 5000 });
+    } else {
+      expect(this.getUrl()).not.toContain('/user/login');
+    }
+  }
+}
 ```
 
 **Переваги:**
-- Повторне використання коду
-- Чисті та читабельні тести
-- Легка підтримка
 
-### 3. Тести (`tests/`)
+- Повторне використання в усіх тестах.
+- Тести не знають про селектори — тільки про методи типу `login()`, `verifySuccessfulLogin()`.
 
-Тести використовують Page Objects:
+---
 
-```python
-# tests/test_login.py
-def test_positive_login(self, page: Page, test_config: TestConfig):
-    login_page = LoginPage(page)
-    login_page.navigate_to_login(test_config.LOGIN_URL)
-    login_page.login(email=test_config.USER_EMAIL, password=test_config.USER_PASSWORD)
-    login_page.verify_successful_login(expected_url=test_config.DASHBOARD_URL)
+## 3. Тести (`e2e/*.spec.ts`)
+
+Спеки створюють Page Objects і викликають їхні методи. Конфіг беруть із `fixtures/env.ts` (`testConfig`).
+
+```typescript
+// e2e/login.spec.ts
+import { test } from '@playwright/test';
+import { testConfig } from '../fixtures/env';
+import { LoginPage } from '../pages/LoginPage';
+
+test('успішний логін з валідними даними', async ({ page }) => {
+  const { loginUrl, userEmail, userPassword, dashboardUrl } = testConfig;
+  const loginPage = new LoginPage(page);
+  await loginPage.navigateToLogin(loginUrl);
+  await loginPage.login(userEmail!, userPassword!);
+  await loginPage.verifySuccessfulLogin(dashboardUrl ?? undefined);
+});
 ```
+
+---
 
 ## Як додати нову сторінку
 
-### Крок 1: Створити локатори
+### Крок 1: Локатори
 
-Створіть файл `locators/your_page_locators.py`:
+Створити файл `locators/your-page.locators.ts`:
 
-```python
-class YourPageLocators:
-    ELEMENT_1 = "#selector1"
-    ELEMENT_2 = ".class-name"
-    BUTTON = "button[type='submit']"
+```typescript
+export const yourPageLocators = {
+  mainButton: "role=button[name='Зберегти']",
+  inputField: '#your-input',
+} as const;
 ```
 
-### Крок 2: Створити Page Object
+### Крок 2: Page Object
 
-Створіть файл `pages/your_page.py`:
+Створити файл `pages/YourPage.ts`:
 
-```python
-from pages.base_page import BasePage
-from locators.your_page_locators import YourPageLocators
+```typescript
+import { BasePage } from './BasePage';
+import { yourPageLocators } from '../locators/your-page.locators';
 
-class YourPage(BasePage):
-    def __init__(self, page: Page):
-        super().__init__(page)
-        self.locators = YourPageLocators()
-    
-    def do_something(self):
-        element = self.page.locator(self.locators.ELEMENT_1)
-        element.click()
+export class YourPage extends BasePage {
+  async doAction(): Promise<void> {
+    await this.page.locator(yourPageLocators.mainButton).click();
+    await this.waitForLoadState('networkidle');
+  }
+}
 ```
 
-### Крок 3: Використати в тестах
+### Крок 3: Використання в тестах
 
-```python
-def test_something(self, page: Page):
-    your_page = YourPage(page)
-    your_page.do_something()
+У `e2e/*.spec.ts`:
+
+```typescript
+import { YourPage } from '../pages/YourPage';
+
+test('щось робить на новій сторінці', async ({ page }) => {
+  const yourPage = new YourPage(page);
+  await yourPage.goto('https://...');
+  await yourPage.doAction();
+});
 ```
+
+---
 
 ## Оновлення локаторів
 
-Якщо змінився селектор на сторінці:
+Якщо змінився селектор на продукті:
 
-1. Відкрийте відповідний файл локаторів
-2. Оновіть потрібний локатор
-3. Всі тести автоматично використають новий локатор
+1. Відкрити відповідний файл у `locators/`.
+2. Змінити значення потрібного ключа.
+3. Усі Page Objects і тести, що використовують цей локатор, отримають оновлення автоматично.
 
-**Приклад:**
-```python
-# Було:
-EMAIL_INPUT = "#email"
-
-# Стало:
-EMAIL_INPUT = "#user-email"
-```
+---
 
 ## Кросс-браузерне тестування
 
-Проект підтримує тестування на різних браузерах без змін в коді:
+Playwright підтримує Chromium, Firefox, WebKit. Page Objects використовують стандартні Playwright API, тому один і той самий код працює у всіх браузерах.
 
-### Підтримувані браузери:
-- ✅ **Chromium** (за замовчуванням)
-- ✅ **Safari (WebKit)**
-- ✅ **Firefox**
-
-### Як це працює:
-
-1. **pytest-playwright автоматично параметризує тести** по браузерам через фікстуру `page: Page`
-2. **Page Objects працюють однаково** на всіх браузерах - вони використовують стандартні Playwright API
-3. **Локатори не залежать від браузера** - CSS селектори працюють однаково
-
-### Запуск на різних браузерах:
+**Запуск:**
 
 ```bash
-# Chromium (за замовчуванням)
-pytest tests/test_login.py
+cd tests-ts
+# За замовчуванням — Chromium
+npm run test
 
-# Safari (WebKit)
-pytest tests/test_login.py --browser webkit
+# Конкретний браузер
+npx playwright test --project=chromium
+npx playwright test --project=firefox
+npx playwright test --project=webkit
 
-# Firefox
-pytest tests/test_login.py --browser firefox
-
-# З відкритим браузером
-pytest tests/test_login.py --headed --browser webkit
+# З відкритим вікном
+npm run test:headed
 ```
 
-### Переваги POM для кросс-браузерного тестування:
+Налаштування проєктів — у `playwright.config.ts`.
 
-- ✅ **Один код для всіх браузерів** - Page Objects не потребують змін
-- ✅ **Легке додавання нових браузерів** - просто встановити та запустити з `--browser`
-- ✅ **Консистентність** - локатори та методи працюють однаково на всіх браузерах
+---
 
-## Best Practices
+## Best practices
 
-1. ✅ **Один Page Object = одна сторінка**
-2. ✅ **Локатори в окремих класах**
-3. ✅ **Методи Page Objects повертають об'єкти сторінок для ланцюжкових викликів**
-4. ✅ **Базовий клас для загальних методів**
-5. ✅ **Описові назви методів**
-6. ✅ **Кросс-браузерна сумісність** - використовувати стандартні Playwright API
+1. **Один Page Object — одна сторінка (або один логічний екран).**
+2. **Локатори тільки в `locators/`** — у spec-файлах і Page Objects не хардкодити селектори.
+3. **Базовий клас** — загальні методи (`goto`, `getUrl`, `waitForLoadState`) в `BasePage`.
+4. **Описові назви методів** — `fillEmail`, `verifySuccessfulLogin`, `clickSaveButton`.
+5. **Перевірки в Page Object або в тесті** — дрібні перевірки (наприклад, `isErrorMessageVisible`) можна в PO; складні сценарії залишати в spec з `expect()`.
+6. **Конфіг і секрети** — тільки через `fixtures/env.ts` та `.env`, без хардкоду в тестах.
 
-## Приклади
+---
 
-### Додавання методу в Page Object
+## Приклади з проєкту
 
-```python
-class LoginPage(BasePage):
-    def fill_email(self, email: str):
-        email_input = self.page.locator(self.locators.EMAIL_INPUT)
-        email_input.fill(email)
-        return self  # Для ланцюжкових викликів
-```
+| Сторінка / область   | Локатори                  | Page Object   | Спеки                |
+|----------------------|---------------------------|---------------|-----------------------|
+| Логін                | `login.locators.ts`       | `LoginPage`   | `login.spec.ts`       |
+| XML-фіди та мапінг   | `xml-feed.locators.ts`    | `XmlFeedPage` | `xml-feed.spec.ts`, `excel-mapping.spec.ts` |
 
-### Використання в тесті
+Excel-мапінг не має окремого Page Object — це той самий екран редагування фіду, тому методи типу `downloadExcelMappingFile` та `uploadExcelMappingFile` знаходяться в `XmlFeedPage`.
 
-```python
-login_page = LoginPage(page)
-login_page.fill_email("test@example.com").fill_password("password").click_login_button()
-```
+---
+
+**Див. також:** [README.md](README.md) (індекс документації), [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) (структура tests-ts).

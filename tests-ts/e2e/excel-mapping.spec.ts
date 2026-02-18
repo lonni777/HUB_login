@@ -13,14 +13,48 @@ import { XmlFeedPage } from '../pages/XmlFeedPage';
 const DOWNLOAD_DIR = path.join(process.cwd(), 'test-results', 'excel_mappings');
 const SUCCESS_TEXT = 'Дані збережено!';
 
+// Для cleanup у afterEach навіть при fail тесту
+let excelCleanupFeedId: string | null = null;
+let excelCleanupFilePath: string | null = null;
+
 test.describe('Excel мапінг фідів', () => {
   test.beforeEach(async ({ page }) => {
+    excelCleanupFeedId = null;
+    excelCleanupFilePath = null;
     const { loginUrl, userEmail, userPassword } = testConfig;
     if (!userEmail || !userPassword) return;
     const loginPage = new LoginPage(page);
     await loginPage.navigateToLogin(`${loginUrl}?next=/supplier-content/xml`);
     await loginPage.login(userEmail, userPassword);
     await loginPage.verifySuccessfulLogin();
+  });
+
+  test.afterEach(async ({ page }) => {
+    // Cleanup завжди виконується, навіть при fail: повернути фід (UI) + видалити файл
+    const feedId = excelCleanupFeedId;
+    const filePath = excelCleanupFilePath;
+    excelCleanupFeedId = null;
+    excelCleanupFilePath = null;
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (feedId) {
+      try {
+        const xmlFeedPage = new XmlFeedPage(page);
+        const url = xmlFeedPage.getUrl();
+        if (url.includes(feedId)) {
+          await xmlFeedPage.disableUploadItemsCheckbox();
+          await xmlFeedPage.clickSaveButton();
+          await expect(page.getByText(SUCCESS_TEXT).first()).toBeVisible({ timeout: 10000 }).catch(() => {});
+        }
+      } catch {
+        /* page може бути вже закритий при fail */
+      }
+    }
   });
 
   test('скачування та завантаження Excel файлу мапінгу', async ({ page }) => {
@@ -48,6 +82,8 @@ test.describe('Excel мапінг фідів', () => {
     expect(fs.existsSync(excelFilePath)).toBe(true);
     expect(path.extname(excelFilePath).toLowerCase()).toMatch(/\.xlsx|\.xls/);
     expect(path.basename(excelFilePath)).toContain(feedId);
+    excelCleanupFeedId = feedId;
+    excelCleanupFilePath = excelFilePath;
 
     const uploadSuccess = await xmlFeedPage.uploadExcelMappingFile(excelFilePath);
     expect(uploadSuccess).toBe(true);
@@ -56,23 +92,6 @@ test.describe('Excel мапінг фідів', () => {
       await expect(page.getByText(SUCCESS_TEXT).first()).toBeVisible({ timeout: 15000 });
     } catch {
       expect(xmlFeedPage.getUrl()).toMatch(/feed_id|tab=feed/);
-    }
-
-    // Cleanup: повернути фід у вимкнений стан (вимкнути чекбокс + Зберегти)
-    try {
-      if (xmlFeedPage.getUrl().includes(feedId)) {
-        await xmlFeedPage.disableUploadItemsCheckbox();
-        await xmlFeedPage.clickSaveButton();
-        await expect(page.getByText(SUCCESS_TEXT).first()).toBeVisible({ timeout: 10000 });
-      }
-    } catch {
-      /* cleanup опціонально */
-    }
-
-    try {
-      if (fs.existsSync(excelFilePath)) fs.unlinkSync(excelFilePath);
-    } catch {
-      /* ignore */
     }
   });
 
@@ -100,6 +119,8 @@ test.describe('Excel мапінг фідів', () => {
     expect(fs.existsSync(excelFilePath)).toBe(true);
     expect(path.extname(excelFilePath).toLowerCase()).toMatch(/\.xlsx|\.xls/);
     expect(path.basename(excelFilePath)).toContain(feedId);
+    excelCleanupFeedId = feedId;
+    excelCleanupFilePath = excelFilePath;
 
     const expectedSheets = [
       'Результат',
@@ -122,22 +143,5 @@ test.describe('Excel мапінг фідів', () => {
       expect(sheetNames).toContain(name);
     }
     expect(sheetNames.length).toBeGreaterThanOrEqual(expectedSheets.length);
-
-    // Cleanup: вимкнути чекбокс + Зберегти, видалити файл
-    try {
-      if (xmlFeedPage.getUrl().includes(feedId)) {
-        await xmlFeedPage.disableUploadItemsCheckbox();
-        await xmlFeedPage.clickSaveButton();
-        await expect(page.getByText(SUCCESS_TEXT).first()).toBeVisible({ timeout: 10000 });
-      }
-    } catch {
-      /* cleanup опціонально */
-    }
-
-    try {
-      if (fs.existsSync(excelFilePath)) fs.unlinkSync(excelFilePath);
-    } catch {
-      /* ignore */
-    }
   });
 });

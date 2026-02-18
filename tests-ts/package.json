@@ -7,9 +7,10 @@
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report",
-    "allure:generate": "allure generate ../reports/allure-results -o ../reports/allure-report --clean",
+    "allure:generate": "npx --yes allure-commandline@2.36.0 generate ../reports/allure-results -o ../reports/allure-report --clean",
     "allure:serve": "allure serve ../reports/allure-results",
-    "allure:open": "npx --yes serve ../reports/allure-report -l 9753"
+    "allure:open": "npx --yes serve ../reports/allure-report -l 9753",
+    "allure:rotate": "node scripts/rotate-allure-history.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",

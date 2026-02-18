@@ -1,38 +1,48 @@
-# Тести XML-фідів
+# Тести XML-фідів (tests-ts)
 
-## Валідний фід (додавання, нормалізація, Excel мапінг)
+Сьют: **`tests-ts/e2e/xml-feed.spec.ts`**. Використовуються Page Object `XmlFeedPage` та локатори `xml-feed.locators.ts`.
 
-**URL:** https://gist.github.com/lonni777/dc7d69b7226ce29d807d762bbb054598
+---
+
+## Валідний фід (додавання, нормалізація, Excel-мапінг)
+
+**URL (за замовчуванням):**  
+https://gist.github.com/lonni777/dc7d69b7226ce29d807d762bbb054598
+
+Змінна в `.env`: **`TEST_XML_FEED_URL`**.
 
 Використовується в тестах:
-- `test_validate_url_save_valid_url_without_spaces` — додавання валідного фіду
-- `test_validate_url_save_normalized_url_with_spaces` — нормалізація URL з пробілами
-- `test_excel_mapping` — скачування/завантаження Excel мапінгу
 
-Конфіг: `TEST_XML_FEED_URL`
+- Збереження валідного URL без пробілів
+- Збереження нормалізованого URL (пробіли до/після)
+- Excel-мапінг (скачування/завантаження) — у `excel-mapping.spec.ts`
 
 ---
 
 ## TC-XML-007: Таймаут при збереженні фіду
 
-### Ліміти feed-download (валідація при "Зберегти")
+### Ліміти feed-download (валідація при «Зберегти»)
 
 При натисканні «Зберегти» валідація фіду використовує feed-download з такими таймаутами:
 
-| Параметр       | Значення | Опис |
-|----------------|----------|------|
-| **conn-timeout**   | 1 хв  | Якщо сервер не відповідає протягом 1 хв → "Connect timed out" |
-| **socket-timeout** | 5 хв  | Якщо після з'єднання дані не надходять 5 хв → "Operation timed out" / "Таймаут завантаження фіду" |
+| Параметр | Значення | Опис |
+|----------|----------|------|
+| **conn-timeout** | 1 хв | Якщо сервер не відповідає протягом 1 хв → "Connect timed out" |
+| **socket-timeout** | 5 хв | Якщо після з'єднання дані не надходять 5 хв → "Operation timed out" / "Таймаут завантаження фіду" |
 
 ### Що тестуємо
 
-Тест `test_tc_xml_007_connection_timeout_1min` перевіряє **conn-timeout 1 хв** (не socket-timeout 5 хв).
+Тест перевіряє **conn-timeout 1 хв** (не socket-timeout 5 хв).
 
-**Очікувана помилка:** `Помилка валідації xml структури фіду помилка завантаження фіду: Connect timed out`
+**Очікувана помилка:**  
+`Помилка валідації xml структури фіду помилка завантаження фіду: Connect timed out`
 
 ### URL для тесту
 
-Для conn-timeout потрібен URL, який **не відповідає** протягом 1 хв (з'єднання не встановлюється):
-- `http://192.0.2.1/xml` — non-routable IP (TEST-NET), гарантовано connection timeout
-- **Не використовувати** httpbin.org/delay — повертає JSON за ~10 сек → помилка валідації XML, не таймаут
-- Перевизначити через `TEST_TIMEOUT_FEED_URL` в `.env`
+Потрібен URL, який **не відповідає** протягом 1 хв (з'єднання не встановлюється):
+
+- `http://192.0.2.1/xml` — non-routable IP (TEST-NET), гарантовано connection timeout.
+
+**Не використовувати** httpbin.org/delay — повертає JSON за ~10 с → помилка валідації XML, а не таймаут.
+
+Змінна в `.env`: **`TEST_TIMEOUT_FEED_URL`** (за замовчуванням вже `http://192.0.2.1/xml`). Конфіг і чеклист: [PRE_RUN_CHECKLIST.md](PRE_RUN_CHECKLIST.md), [fixtures/env.ts](../tests-ts/fixtures/env.ts).
