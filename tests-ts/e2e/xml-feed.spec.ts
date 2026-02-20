@@ -37,6 +37,26 @@ test.describe('XML-фіди: додавання та валідація', () => 
     if (feedId) feedCleanup.registerDelete(feedId);
   });
 
+  test('збереження фіду з посиланням http', async ({ page, feedCleanup }) => {
+    test.setTimeout(90000);
+    const { testSupplierName, xmlFeedsUrl, testHttpXmlFeedUrl } = testConfig;
+    const xmlFeedPage = new XmlFeedPage(page);
+    await xmlFeedPage.selectSupplier(testSupplierName);
+    await xmlFeedPage.navigateToXmlFeedsViaMenu();
+    await xmlFeedPage.clickAddNewFeedButton();
+    await xmlFeedPage.fillFeedUrl(testHttpXmlFeedUrl);
+    await xmlFeedPage.enableUploadItemsCheckbox();
+    await xmlFeedPage.clickSaveButton();
+    await xmlFeedPage.verifySuccessMessage('Дані збережено!');
+    await xmlFeedPage.navigateToFeedsTable(xmlFeedsUrl);
+    let feedId = await xmlFeedPage.getFeedIdByUrlFromTable(testHttpXmlFeedUrl);
+    if (!feedId) {
+      await xmlFeedPage.filterFeedsByLink(testHttpXmlFeedUrl);
+      feedId = await xmlFeedPage.getFeedIdFromFilteredTable();
+    }
+    if (feedId) feedCleanup.registerDelete(feedId);
+  });
+
   test('збереження нормалізованого URL (пробіли до/після)', async ({ page, feedCleanup }) => {
     test.setTimeout(90000);
     const { testSupplierName, testXmlFeedUrl, xmlFeedsUrl } = testConfig;
@@ -185,6 +205,27 @@ test.describe('XML-фіди: додавання та валідація', () => 
     ).toBeVisible({ timeout: 5000 });
     const hasError = await xmlFeedPage.hasValidationErrorMessage('Помилка валідації xml структури фіду');
     expect(hasError).toBe(true);
+  });
+
+  test('URL без протоколу (тільки домен) — помилка валідації', async ({ page }) => {
+    const urlWithoutProtocol = 'example.com/feed.xml';
+    const xmlFeedPage = new XmlFeedPage(page);
+    await xmlFeedPage.selectSupplier(testConfig.testSupplierName);
+    await xmlFeedPage.navigateToXmlFeedsViaMenu();
+    await xmlFeedPage.clickAddNewFeedButton();
+    await xmlFeedPage.fillFeedUrl(urlWithoutProtocol);
+    await xmlFeedPage.enableUploadItemsCheckbox();
+    await xmlFeedPage.clickSaveButton();
+    await expect(
+      page
+        .locator('.ant-alert-error, .ant-message-error, .ant-form-item-explain-error')
+        .or(page.getByText(/Помилка валідації|no protocol/i))
+        .first(),
+    ).toBeVisible({ timeout: 5000 });
+    const hasNoProtocol = await xmlFeedPage.hasValidationErrorMessage('no protocol');
+    const hasExampleUrl = await xmlFeedPage.hasValidationErrorMessage('example.com/feed.xml');
+    expect(hasNoProtocol, 'Очікується помилка "no protocol"').toBe(true);
+    expect(hasExampleUrl, 'Очікується введений URL у тексті помилки').toBe(true);
   });
 
   test('некоректна структура XML', async ({ page }) => {

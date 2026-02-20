@@ -46,3 +46,30 @@ https://gist.github.com/lonni777/dc7d69b7226ce29d807d762bbb054598
 **Не використовувати** httpbin.org/delay — повертає JSON за ~10 с → помилка валідації XML, а не таймаут.
 
 Змінна в `.env`: **`TEST_TIMEOUT_FEED_URL`** (за замовчуванням вже `http://192.0.2.1/xml`). Конфіг і чеклист: [PRE_RUN_CHECKLIST.md](PRE_RUN_CHECKLIST.md), [fixtures/env.ts](../tests-ts/fixtures/env.ts).
+
+---
+
+## Умови для URL фіду (з коду Hub)
+
+| Протокол   | Результат | Причина                             |
+|------------|-----------|-------------------------------------|
+| `http://`  | Дозволено | Підтримується clj-http              |
+| `https://` | Дозволено | Підтримується clj-http              |
+| без протоколу | Помилка | "no protocol"                       |
+| `ftp://`   | Помилка   | Невалідна схема для XML-фіду        |
+
+---
+
+## Імітація HTTP-фіду (тест «збереження фіду з посиланням http»)
+
+**Суть:** Hub-бекенд завантажує URL при натисканні «Зберегти». URL має бути доступним для сервера Hub.
+
+**Реалізація:** Локальний mock-сервер. Playwright `webServer` автоматично запускає його на порту 9876 перед тестами. URL: `http://localhost:9876/feed.xml`.
+
+**Обмеження:** Hub має мати доступ до `localhost:9876`. Працює, коли:
+- Hub запущений локально (наприклад через docker-compose) — `localhost` означає ту саму машину.
+- Hub у Docker — задай у `.env`: `TEST_HTTP_XML_FEED_URL=http://host.docker.internal:9876/feed.xml`.
+
+**Якщо Hub на віддаленому сервері (hubtest.kasta.ua):** mock на localhost недоступний. Задай у `.env` публічний HTTP URL (наприклад, `http://www.floatrates.com/daily/usd.xml`).
+
+

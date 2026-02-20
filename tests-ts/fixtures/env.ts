@@ -17,6 +17,10 @@ export const testConfig = {
   testXmlFeedUrl:
     process.env.TEST_XML_FEED_URL ||
     'https://gist.githubusercontent.com/lonni777/dc7d69b7226ce29d807d762bbb054598/raw',
+  /** URL з протоколом http. За замовчуванням — публічний (hubtest.kasta.ua). Для Hub у Docker локально — host.docker.internal:9876 */
+  testHttpXmlFeedUrl:
+    process.env.TEST_HTTP_XML_FEED_URL ||
+    'http://www.floatrates.com/daily/usd.xml',
   testInvalidXmlFeedUrl:
     process.env.TEST_INVALID_XML_FEED_URL ||
     'https://www.dropbox.com/scl/fi/o84mvoxjl0ro6iejsh60p/Untitled-1.xml?rlkey=p09wc82oxv8rfl5c4pho4bfin&st=8k4hz546&dl=1',
