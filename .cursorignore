@@ -1,0 +1,7 @@
+node_modules/
+**/node_modules/
+reports/
+test-results/
+.git/
+.venv/
+kastaua-hub-master/

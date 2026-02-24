@@ -3,30 +3,55 @@
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
     "python.testing.pytestArgs": [
-        "tests",
-        "-v"
+      "tests",
+      "-v"
     ],
-    
+  
     // Автоматичне виявлення тестів
     "python.testing.autoTestDiscoverOnSaveEnabled": true,
-    
+  
     // Налаштування для Python
     "python.defaultInterpreterPath": "python",
-    
+  
     // Форматування коду
     "python.formatting.provider": "none",
-    
+  
     // Лінтер
     "python.linting.enabled": true,
     "python.linting.pylintEnabled": false,
     "python.linting.flake8Enabled": false,
-    
+  
     // Налаштування для Playwright
     "playwright.reuseBrowser": false,
-    
+  
     // Приховати файли з .gitignore
     "files.exclude": {
-        "**/__pycache__": true,
-        "**/*.pyc": true
-    }
-}
+      "**/__pycache__": true,
+      "**/*.pyc": true,
+      "**/node_modules": true,
+      "reports": true,
+      "test-results": true
+    },
+
+    // Зменшення індексації (OOM) — не стежити за цими папками
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/reports/**": true,
+      "**/test-results/**": true,
+      "**/.git/**": true
+    },
+
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/reports": true,
+      "**/test-results": true
+    },
+
+    // Cursor: вимкнути індексацію для зменшення OOM (повернуто після крашів)
+    "cursor.general.enableCodebaseIndexing": false,
+    "cursor.general.gitGraphIndexing": "disabled",
+    "cursor.indexing.enableCodebaseIndexing": false,
+    "cursor.indexing.indexLargeRepositories": false,
+    "cursor.indexing.background": false,
+    "cursor.ai.autocomplete.enabled": false
+  }

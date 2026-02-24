@@ -16,6 +16,8 @@
 | [REPORTS_AND_ARTIFACTS.md](REPORTS_AND_ARTIFACTS.md) | Деталі Allure, історія прогонів (3 на сьют), артефакти при падінні |
 | [TS_TESTS_RUN_STATUS.md](TS_TESTS_RUN_STATUS.md) | Статус проходження тестів (час, PASSED/FAILED по сьютах) |
 | [XML_FEED_TESTS.md](XML_FEED_TESTS.md) | Тести XML-фідів: URL, TC-XML-007 (таймаут), змінні .env |
+| [XML_AUTOMATION_PLAN.md](XML_AUTOMATION_PLAN.md) | План автоматизації XML-фідів: тест-сьюти, покриття інструкції, посилання на код hub |
+| [POSTMAN_CRON_EXAMPLE.md](POSTMAN_CRON_EXAMPLE.md) | Приклад запуску крону через Postman: один ендпоінт, body, headers, collection |
 
 ---
 
