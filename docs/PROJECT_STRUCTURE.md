@@ -1,6 +1,6 @@
 # Структура проєкту (TypeScript — основний стек)
 
-Проєкт автотестів HUB: логін, XML-фіди, Excel-мапінг. **Основний набір тестів** — **tests-ts** (TypeScript, Playwright). tests-Python — legacy, нові кейси не додаються.
+Проєкт автотестів HUB: **логін та XML-фіди**. Основний набір тестів — **tests-ts** (TypeScript, Playwright). tests-Python — legacy, нові кейси не додаються.
 
 ---
 
@@ -21,7 +21,7 @@
 
 | Призначення | Шлях |
 |-------------|------|
-| Тести | `e2e/login.spec.ts`, `e2e/xml-feed.spec.ts`, `e2e/excel-mapping.spec.ts` |
+| Тести | `e2e/login.spec.ts`, `e2e/xml-feed.spec.ts`, `e2e/xml-feed-settings.spec.ts`, `e2e/excel-mapping.spec.ts` |
 | Page Objects | `pages/BasePage.ts`, `pages/LoginPage.ts`, `pages/XmlFeedPage.ts` |
 | Локатори | `locators/login.locators.ts`, `locators/xml-feed.locators.ts` |
 | Конфіг | `fixtures/env.ts` (testConfig з .env) |
@@ -58,10 +58,8 @@ npm run allure:open
 | Модуль | Спеки | Page Object | Локатори |
 |--------|-------|-------------|----------|
 | Логін | `e2e/login.spec.ts` | `LoginPage` | `login.locators.ts` |
-| XML-фіди | `e2e/xml-feed.spec.ts` | `XmlFeedPage` | `xml-feed.locators.ts` |
-| Excel мапінг | `e2e/excel-mapping.spec.ts` | `XmlFeedPage` (ті самі екрани) | `xml-feed.locators.ts` |
-
-Усього 24 тести в tests-ts (11 login + 11 xml-feed + 2 excel-mapping).
+| XML-фіди | `e2e/xml-feed.spec.ts`, `e2e/xml-feed-settings.spec.ts` | `XmlFeedPage` | `xml-feed.locators.ts` |
+| Excel мапінг | `e2e/excel-mapping.spec.ts` | `XmlFeedPage` | `xml-feed.locators.ts` |
 
 ---
 

@@ -17,6 +17,9 @@ export const testConfig = {
   testXmlFeedUrl:
     process.env.TEST_XML_FEED_URL ||
     'https://gist.githubusercontent.com/lonni777/dc7d69b7226ce29d807d762bbb054598/raw',
+  /** URL фіду з двома варіантами (1-й запит = 1 товар, 2-й = 2 товари). Для тесту «вимкнення фіда блокує нові завантаження». Hub має доступити до URL (для hubtest — публічний або тунель). */
+  testXmlFeedTwoVersionsUrl:
+    process.env.TEST_XML_FEED_TWO_VERSIONS_URL || 'http://localhost:9877/feed.xml',
   /** URL з протоколом http. За замовчуванням — публічний (hubtest.kasta.ua). Для Hub у Docker локально — host.docker.internal:9876 */
   testHttpXmlFeedUrl:
     process.env.TEST_HTTP_XML_FEED_URL ||
@@ -40,6 +43,12 @@ export const testConfig = {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
+
+  /** API trigger-feedload (POST) — запуск завантаження фіду по требованию. Для тестів налаштувань. */
+  triggerFeedloadUrl:
+    process.env.TEST_TRIGGER_FEEDLOAD_URL || `${baseUrl}/api/admin-tools/trigger-feedload`,
+  /** Токен Authorization для trigger-feedload. Задати в .env. */
+  triggerFeedloadAuth: process.env.TEST_TRIGGER_FEEDLOAD_AUTH || '',
 
   // БД (для cleanup; як у Python — TEST_DB_* з .env)
   dbHost: process.env.TEST_DB_HOST || '',

@@ -1,6 +1,6 @@
 # Документація проєкту (TypeScript — основний стек)
 
-Усі документи тут описують **tests-ts** (TypeScript, Playwright). Python-тести — legacy, їхня документація в [tests-Python/docs/](../tests-Python/docs/).
+Scope: **автоматизація логіну та XML-фідів**. Документи описують **tests-ts** (TypeScript, Playwright). Python-тести — legacy, їхня документація в [tests-Python/docs/](../tests-Python/docs/).
 
 ---
 
@@ -17,7 +17,6 @@
 | [TS_TESTS_RUN_STATUS.md](TS_TESTS_RUN_STATUS.md) | Статус проходження тестів (час, PASSED/FAILED по сьютах) |
 | [XML_FEED_TESTS.md](XML_FEED_TESTS.md) | Тести XML-фідів: URL, TC-XML-007 (таймаут), змінні .env |
 | [XML_AUTOMATION_PLAN.md](XML_AUTOMATION_PLAN.md) | План автоматизації XML-фідів: тест-сьюти, покриття інструкції, посилання на код hub |
-| [POSTMAN_CRON_EXAMPLE.md](POSTMAN_CRON_EXAMPLE.md) | Приклад запуску крону через Postman: один ендпоінт, body, headers, collection |
 
 ---
 

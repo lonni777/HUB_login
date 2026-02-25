@@ -1,10 +1,10 @@
-# Проект автотестів Hub (логін, XML-фіди, Excel)
+# Проект автотестів Hub (логін та XML-фіди)
 
-Репозиторій містить два набори тестів:
+Автоматизація **логіну** та **XML-фідів** у HUB. Репозиторій містить два набори тестів:
 
 | Каталог | Мова | Призначення |
 |---------|------|-------------|
-| **tests-ts/** | TypeScript (Playwright) | **Основні тести** — тут пишемо та запускаємо всі нові тести |
+| **tests-ts/** | TypeScript (Playwright) | **Основні тести** — логін та XML-фіди (додавання, валідація, налаштування) |
 | **tests-Python/** | Python (pytest + Playwright) | **Legacy** — існуючі тести, нові кейси не додаються |
 
 Секрети та конфіг: файл **`.env`** у **корені** репозиторію (скопіюйте з `.env.example`). Його використовують обидва підпроєкти.
@@ -60,11 +60,11 @@ pytest tests/test_login.py -v
 
 ```
 HUB_login/
-├── tests-ts/           # TypeScript, Playwright — основні тести
+├── tests-ts/           # TypeScript, Playwright — логін та XML-фіди
 │   ├── e2e/
 │   ├── playwright.config.ts
 │   └── package.json
-├── tests-Python/       # Python, pytest — legacy-тести
+├── tests-Python/       # Python, pytest — legacy
 │   ├── tests/
 │   ├── pages/, config/, locators/, utils/
 │   ├── conftest.py

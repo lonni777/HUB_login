@@ -10,12 +10,12 @@ const baseURL = process.env.TEST_BASE_URL || process.env.TEST_LOGIN_URL?.replace
 // Єдиний репорт: Allure (див. docs/REPORTS_AND_ARTIFACTS.md)
 const reportsDir = path.join(__dirname, '..', 'reports');
 
-/** Mock HTTP-сервер для тесту «збереження фіду з посиланням http». Hub має мати доступ до localhost. */
+/** Mock HTTP-сервери фідів: 9876 — http-фід, 9877 — два варіанти для тесту «вимкнення фіда блокує». */
 const HTTP_FEED_PORT = 9876;
 
 export default defineConfig({
   webServer: {
-    command: `node scripts/serve-http-feed.js ${HTTP_FEED_PORT}`,
+    command: 'node scripts/serve-all-feeds.js',
     url: `http://localhost:${HTTP_FEED_PORT}/feed.xml`,
     reuseExistingServer: !process.env.CI,
   },
